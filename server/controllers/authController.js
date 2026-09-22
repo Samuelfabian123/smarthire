@@ -1,4 +1,3 @@
-```js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
@@ -16,7 +15,7 @@ function generateToken(user) {
   );
 }
 
-// POST /api/auth/register
+// Register
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, companyName } = req.body;
@@ -29,15 +28,15 @@ exports.register = async (req, res) => {
 
     if (!["jobseeker", "employer"].includes(role)) {
       return res.status(400).json({
-        error: "Role must be 'jobseeker' or 'employer'",
+        error: "Role must be jobseeker or employer",
       });
     }
 
-    const existing = await User.findOne({
+    const existingUser = await User.findOne({
       email: email.toLowerCase(),
     });
 
-    if (existing) {
+    if (existingUser) {
       return res.status(409).json({
         error: "Email already registered",
       });
@@ -46,16 +45,17 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email: email.toLowerCase(),
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
       role,
-      companyName: role === "employer" ? companyName : undefined,
+      companyName:
+        role === "employer" ? companyName?.trim() : undefined,
     });
 
     const token = generateToken(user);
 
-    res.status(201).json({
+    return res.status(201).json({
       token,
       user: {
         id: user._id,
@@ -67,14 +67,14 @@ exports.register = async (req, res) => {
   } catch (err) {
     console.error("REGISTRATION ERROR:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Registration failed",
       details: err.message,
     });
   }
 };
 
-// POST /api/auth/login
+// Login
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -86,7 +86,7 @@ exports.login = async (req, res) => {
     }
 
     const user = await User.findOne({
-      email: email.toLowerCase(),
+      email: email.toLowerCase().trim(),
     });
 
     if (!user) {
@@ -95,9 +95,12 @@ exports.login = async (req, res) => {
       });
     }
 
-    const match = await bcrypt.compare(password, user.password);
+    const passwordMatches = await bcrypt.compare(
+      password,
+      user.password
+    );
 
-    if (!match) {
+    if (!passwordMatches) {
       return res.status(401).json({
         error: "Invalid credentials",
       });
@@ -105,7 +108,7 @@ exports.login = async (req, res) => {
 
     const token = generateToken(user);
 
-    res.json({
+    return res.status(200).json({
       token,
       user: {
         id: user._id,
@@ -117,10 +120,9 @@ exports.login = async (req, res) => {
   } catch (err) {
     console.error("LOGIN ERROR:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Login failed",
       details: err.message,
     });
   }
 };
-```
