@@ -62,9 +62,9 @@ exports.getRankedCandidates = async (req, res) => {
     }
 
     const matches = await Match.find({ job: jobId })
-      .populate("jobSeeker", "name email")
-      .populate("resume", "fileName")
-      .sort({ finalScore: -1 });
+  .populate("jobSeeker", "name email phone")
+  .populate("resume", "fileName filePath")
+  .sort({ finalScore: -1 });
 
     res.json(matches);
   } catch (err) {

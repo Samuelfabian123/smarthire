@@ -11,8 +11,11 @@ export default function Register() {
     role: "jobseeker",
     companyName: "",
   });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -20,88 +23,390 @@ export default function Register() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
       const { data } = await api.post("/auth/register", form);
+
       login(data.user, data.token);
-      navigate(data.user.role === "employer" ? "/dashboard/employer" : "/dashboard/jobseeker");
+
+      navigate(
+        data.user.role === "employer"
+          ? "/dashboard/employer"
+          : "/dashboard/jobseeker"
+      );
     } catch (err) {
-      setError(err.response?.data?.error || "Registration failed");
+      setError(
+        err.response?.data?.error || "Registration failed"
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="max-w-md mx-auto mt-20 px-6">
-      <h1 className="font-serif text-3xl text-ink mb-2">Create an account</h1>
-      <p className="text-muted text-sm mb-8">Join as a job seeker or an employer.</p>
+    <div className="min-h-[calc(100vh-72px)] bg-slate-50">
+      <div className="grid min-h-[calc(100vh-72px)] lg:grid-cols-2">
 
-      {error && (
-        <p className="text-sm text-ochre mb-4 border border-ochre/40 bg-ochre/5 px-3 py-2 rounded">
-          {error}
-        </p>
-      )}
+        {/* LEFT SIDE */}
+        <div className="relative hidden overflow-hidden bg-emerald-950 lg:flex">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage:
+                "url('https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1400&q=85')",
+            }}
+          />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="text-xs text-muted block mb-1">Full name</label>
-          <input
-            className="input-field"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted block mb-1">Email</label>
-          <input
-            type="email"
-            className="input-field"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted block mb-1">Password</label>
-          <input
-            type="password"
-            className="input-field"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted block mb-1">I am a</label>
-          <select
-            className="input-field"
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-          >
-            <option value="jobseeker">Job seeker</option>
-            <option value="employer">Employer</option>
-          </select>
-        </div>
-        {form.role === "employer" && (
-          <div>
-            <label className="text-xs text-muted block mb-1">Company name</label>
-            <input
-              className="input-field"
-              value={form.companyName}
-              onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-            />
+          <div className="absolute inset-0 bg-emerald-950/90" />
+
+          <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl" />
+          <div className="absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-green-400/10 blur-3xl" />
+
+          <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
+
+            {/* Logo */}
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-2xl font-bold text-white shadow-lg">
+                  S
+                </div>
+
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight text-white">
+                    SmartHire
+                  </h2>
+
+                  <p className="text-xs text-emerald-200">
+                    Smarter Matching. Brighter Futures.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Main message */}
+            <div className="max-w-xl">
+
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 backdrop-blur-sm">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                Join the SmartHire community
+              </div>
+
+              <h1 className="text-4xl font-bold leading-tight text-white xl:text-5xl">
+                Your next opportunity
+                <span className="block text-emerald-400">
+                  starts here.
+                </span>
+              </h1>
+
+              <p className="mt-6 max-w-lg text-base leading-7 text-slate-200">
+                Create your SmartHire account and connect with opportunities
+                and talent using intelligent AI-powered matching.
+              </p>
+
+              {/* Features */}
+              <div className="mt-8 space-y-4">
+
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300">
+                    ✓
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-white">
+                      For job seekers
+                    </p>
+
+                    <p className="text-sm text-slate-300">
+                      Discover jobs that match your skills.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300">
+                    ✓
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-white">
+                      For employers
+                    </p>
+
+                    <p className="text-sm text-slate-300">
+                      Find candidates who fit your requirements.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300">
+                    ✓
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-white">
+                      AI-powered matching
+                    </p>
+
+                    <p className="text-sm text-slate-300">
+                      Match people with opportunities more intelligently.
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-400">
+              © {new Date().getFullYear()} SmartHire. All rights reserved.
+            </p>
           </div>
-        )}
-        <button type="submit" disabled={loading} className="btn-primary w-full">
-          {loading ? "Creating account…" : "Register"}
-        </button>
-      </form>
+        </div>
 
-      <p className="text-sm text-muted mt-6">
-        Already have an account?{" "}
-        <Link to="/login" className="text-emerald">Log in</Link>
-      </p>
+        {/* RIGHT SIDE */}
+        <div className="flex items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
+          <div className="w-full max-w-md">
+
+            {/* Mobile logo */}
+            <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-xl font-bold text-white">
+                S
+              </div>
+
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  SmartHire
+                </h2>
+
+                <p className="text-xs text-slate-500">
+                  Smarter Matching. Brighter Futures.
+                </p>
+              </div>
+            </div>
+
+            {/* Registration card */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-200/60 sm:p-9">
+
+              <div className="mb-7">
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                  Create your account
+                </h1>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Join SmartHire and take the next step in your career.
+                </p>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+
+                {/* Full name */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Full name
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="Enter your full name"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        name: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Email address
+                  </label>
+
+                  <input
+                    type="email"
+                    placeholder="you@example.com"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        email: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Password
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Create a password"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-16 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+                      value={form.password}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          password: e.target.value,
+                        })
+                      }
+                      required
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowPassword(!showPassword)
+                      }
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 transition hover:text-emerald-600"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Account type */}
+                <div>
+                  <label className="mb-3 block text-sm font-semibold text-slate-700">
+                    I am joining as
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+
+                    {/* Job seeker */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          role: "jobseeker",
+                          companyName: "",
+                        })
+                      }
+                      className={`rounded-xl border p-4 text-left transition ${
+                        form.role === "jobseeker"
+                          ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/10"
+                          : "border-slate-200 bg-slate-50 hover:border-emerald-300"
+                      }`}
+                    >
+                      <div className="mb-2 text-xl">👤</div>
+
+                      <p className="text-sm font-bold text-slate-900">
+                        Job seeker
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        Find opportunities
+                      </p>
+                    </button>
+
+                    {/* Employer */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          role: "employer",
+                        })
+                      }
+                      className={`rounded-xl border p-4 text-left transition ${
+                        form.role === "employer"
+                          ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/10"
+                          : "border-slate-200 bg-slate-50 hover:border-emerald-300"
+                      }`}
+                    >
+                      <div className="mb-2 text-xl">🏢</div>
+
+                      <p className="text-sm font-bold text-slate-900">
+                        Employer
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        Hire great talent
+                      </p>
+                    </button>
+
+                  </div>
+                </div>
+
+                {/* Company name */}
+                {form.role === "employer" && (
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Company name
+                    </label>
+
+                    <input
+                      type="text"
+                      placeholder="Enter your company name"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+                      value={form.companyName}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          companyName: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                )}
+
+                {/* Register button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading
+                    ? "Creating account..."
+                    : "Create account"}
+
+                  {!loading && (
+                    <span className="transition-transform group-hover:translate-x-1">
+                      →
+                    </span>
+                  )}
+                </button>
+              </form>
+
+              {/* Security note */}
+              <div className="mt-6 rounded-xl bg-emerald-50 px-4 py-3 text-center text-xs leading-5 text-emerald-700">
+                Your information is securely protected.
+              </div>
+
+              {/* Login */}
+              <p className="mt-7 text-center text-sm text-slate-500">
+                Already have an account?{" "}
+                <Link
+                  to="/login"
+                  className="font-bold text-emerald-600 transition hover:text-emerald-700"
+                >
+                  Log in
+                </Link>
+              </p>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }

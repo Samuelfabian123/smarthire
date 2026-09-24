@@ -12,7 +12,11 @@ const app = express();
 
 connectDB();
 
-app.use(cors({ origin: process.env.CLIENT_URL || "*" }));
+app.use(
+  cors({
+    origin: "http://localhost:5175",
+  })
+);
 app.use(express.json());
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
