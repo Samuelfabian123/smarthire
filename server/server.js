@@ -14,7 +14,7 @@ connectDB();
 
 app.use(
   cors({
-    origin: "http://localhost:5175",
+    origin: "https://smarthire-ldqt.onrender.com",
   })
 );
 app.use(express.json());
