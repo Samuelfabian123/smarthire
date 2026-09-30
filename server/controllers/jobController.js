@@ -6,7 +6,9 @@ exports.createJob = async (req, res) => {
     const { title, description, location, skillsRequired } = req.body;
 
     if (!title || !description) {
-      return res.status(400).json({ error: "Title and description are required" });
+      return res.status(400).json({
+        error: "Title and description are required",
+      });
     }
 
     const job = await Job.create({
@@ -17,28 +19,97 @@ exports.createJob = async (req, res) => {
       skillsRequired: skillsRequired || [],
     });
 
-    res.status(201).json({ message: "Job posted", job });
+    res.status(201).json({
+      message: "Job posted",
+      job,
+    });
   } catch (err) {
-    res.status(500).json({ error: "Failed to create job", details: err.message });
+    res.status(500).json({
+      error: "Failed to create job",
+      details: err.message,
+    });
   }
 };
 
-// GET /api/jobs  (all jobs, for job seekers to browse)
+// GET /api/jobs
+// All jobs, for job seekers to browse
 exports.getAllJobs = async (req, res) => {
   try {
-    const jobs = await Job.find().populate("employer", "name companyName").sort({ createdAt: -1 });
+    const jobs = await Job.find()
+      .populate("employer", "name companyName")
+      .sort({ createdAt: -1 });
+
     res.json(jobs);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch jobs", details: err.message });
+    res.status(500).json({
+      error: "Failed to fetch jobs",
+      details: err.message,
+    });
   }
 };
 
-// GET /api/jobs/mine  (jobs posted by the logged-in employer)
+// GET /api/jobs/mine
+// Jobs posted by the logged-in employer
 exports.getMyJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ employer: req.user.id }).sort({ createdAt: -1 });
+    const jobs = await Job.find({
+      employer: req.user.id,
+    }).sort({ createdAt: -1 });
+
     res.json(jobs);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch jobs", details: err.message });
+    res.status(500).json({
+      error: "Failed to fetch jobs",
+      details: err.message,
+    });
+  }
+};
+
+// PUT /api/jobs/:jobId
+// Edit a job posted by the logged-in employer
+exports.updateJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { title, description, location, skillsRequired } = req.body;
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({
+        error: "Job not found",
+      });
+    }
+
+    // Make sure the employer owns this job
+    if (String(job.employer) !== String(req.user.id)) {
+      return res.status(403).json({
+        error: "You are not allowed to edit this job",
+      });
+    }
+
+    if (!title || !description) {
+      return res.status(400).json({
+        error: "Title and description are required",
+      });
+    }
+
+    job.title = title;
+    job.description = description;
+    job.location = location || "";
+    job.skillsRequired = Array.isArray(skillsRequired)
+      ? skillsRequired
+      : [];
+
+    await job.save();
+
+    res.json({
+      message: "Job updated successfully",
+      job,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "Failed to update job",
+      details: err.message,
+    });
   }
 };

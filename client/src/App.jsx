@@ -9,7 +9,9 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
 import JobSeekerDashboard from "./pages/JobSeekerDashboard";
+import JobSeekerProfile from "./pages/JobSeekerProfile.jsx";
 import EmployerDashboard from "./pages/EmployerDashboard";
+import EmployerProfile from "./pages/EmployerProfile.jsx";
 import PostJob from "./pages/PostJob";
 import BrowseJobs from "./pages/BrowseJobs";
 import CandidatesList from "./pages/CandidatesList";
@@ -36,6 +38,7 @@ export default function App() {
           element={<ResetPassword />}
         />
 
+        {/* JOB SEEKER DASHBOARD */}
         <Route
           path="/dashboard/jobseeker"
           element={
@@ -45,6 +48,17 @@ export default function App() {
           }
         />
 
+        {/* JOB SEEKER PROFILE */}
+        <Route
+          path="/profile/jobseeker"
+          element={
+            <ProtectedRoute role="jobseeker">
+              <JobSeekerProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* EMPLOYER DASHBOARD */}
         <Route
           path="/dashboard/employer"
           element={
@@ -54,6 +68,17 @@ export default function App() {
           }
         />
 
+        {/* EMPLOYER / COMPANY PROFILE */}
+        <Route
+          path="/profile/employer"
+          element={
+            <ProtectedRoute role="employer">
+              <EmployerProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* JOBSEEKER - BROWSE JOBS */}
         <Route
           path="/jobs"
           element={
@@ -63,6 +88,7 @@ export default function App() {
           }
         />
 
+        {/* EMPLOYER - POST JOB */}
         <Route
           path="/jobs/new"
           element={
@@ -72,6 +98,7 @@ export default function App() {
           }
         />
 
+        {/* EMPLOYER - CANDIDATES */}
         <Route
           path="/jobs/:jobId/candidates"
           element={
