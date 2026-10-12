@@ -7,12 +7,11 @@ const Match = require("../models/Match");
 const Job = require("../models/Job");
 
 /**
- * Extracts plain text from an uploaded resume file (PDF or DOCX).
+ * Extract text from an uploaded PDF or DOCX held in memory by Multer.
  */
-async function extractText(filePath, mimeType) {
+async function extractText(fileBuffer, mimeType) {
   if (mimeType === "application/pdf") {
-    const buffer = fs.readFileSync(filePath);
-    const data = await pdfParse(buffer);
+    const data = await pdfParse(fileBuffer);
     return data.text;
   }
 
@@ -20,7 +19,7 @@ async function extractText(filePath, mimeType) {
     mimeType ===
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
-    const result = await mammoth.extractRawText({ path: filePath });
+    const result = await mammoth.extractRawText({ buffer: fileBuffer });
     return result.value;
   }
 
@@ -34,28 +33,35 @@ exports.uploadResume = async (req, res) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const text = await extractText(req.file.path, req.file.mimetype);
+    const text = await extractText(req.file.buffer, req.file.mimetype);
 
     if (!text || text.trim().length === 0) {
-      fs.unlinkSync(req.file.path);
       return res.status(400).json({
-        error: "Could not extract text from file",
+        error: "Could not extract text from file. Please upload a text-based PDF or DOCX.",
       });
     }
 
     const resume = await Resume.create({
       user: req.user.id,
       fileName: req.file.originalname,
-      filePath: req.file.path,
+      fileData: req.file.buffer,
+      mimeType: req.file.mimetype,
       extractedText: text,
     });
 
-    res.status(201).json({
+    // Never send binary CV contents or extracted personal information in this response.
+    return res.status(201).json({
       message: "Resume uploaded",
-      resume,
+      resume: {
+        _id: resume._id,
+        fileName: resume.fileName,
+        mimeType: resume.mimeType,
+        createdAt: resume.createdAt,
+      },
     });
   } catch (err) {
-    res.status(500).json({
+    console.error("RESUME UPLOAD ERROR:", err);
+    return res.status(500).json({
       error: "Resume upload failed",
       details: err.message,
     });
@@ -65,13 +71,13 @@ exports.uploadResume = async (req, res) => {
 // GET /api/resumes/mine
 exports.getMyResumes = async (req, res) => {
   try {
-    const resumes = await Resume.find({
-      user: req.user.id,
-    }).sort({ createdAt: -1 });
+    const resumes = await Resume.find({ user: req.user.id })
+      .select("-extractedText")
+      .sort({ createdAt: -1 });
 
-    res.json(resumes);
+    return res.json(resumes);
   } catch (err) {
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to fetch resumes",
       details: err.message,
     });
@@ -79,59 +85,48 @@ exports.getMyResumes = async (req, res) => {
 };
 
 // GET /api/resumes/:resumeId/download
-// Employer can download a CV only when the CV belongs to a candidate
-// who has a match/application for one of the employer's jobs.
+// An employer can download a CV only if that resume has a match for a job they own.
 exports.downloadResume = async (req, res) => {
   try {
     const { resumeId } = req.params;
-
-    const resume = await Resume.findById(resumeId);
+    const resume = await Resume.findById(resumeId).select("+fileData");
 
     if (!resume) {
-      return res.status(404).json({
-        error: "Resume not found",
-      });
+      return res.status(404).json({ error: "Resume not found" });
     }
 
-    // Find a match connecting this resume to a job
+    const employerJobs = await Job.find({ employer: req.user.id })
+      .select("_id")
+      .lean();
+    const ownedJobIds = employerJobs.map((job) => job._id);
+
     const match = await Match.findOne({
       resume: resumeId,
-    });
+      job: { $in: ownedJobIds },
+    }).select("_id");
 
     if (!match) {
       return res.status(403).json({
-        error: "You are not authorized to access this resume",
+        error: "You can download this CV only for a job you own that the candidate has matched with.",
       });
     }
 
-    // Check that the job belongs to the logged-in employer
-    const job = await Job.findById(match.job);
-
-    if (!job) {
-      return res.status(404).json({
-        error: "Job not found",
-      });
+    if (resume.fileData && resume.fileData.length > 0) {
+      res.type(resume.mimeType || "application/octet-stream");
+      res.attachment(resume.fileName || "Applicant-CV");
+      return res.send(resume.fileData);
     }
 
-    if (String(job.employer) !== String(req.user.id)) {
-      return res.status(403).json({
-        error: "You are not authorized to access this resume",
-      });
+    // Compatibility for pre-existing records that still have a local path.
+    if (resume.filePath && fs.existsSync(resume.filePath)) {
+      return res.download(path.resolve(resume.filePath), resume.fileName);
     }
 
-    if (!fs.existsSync(resume.filePath)) {
-      return res.status(404).json({
-        error: "CV file is no longer available",
-      });
-    }
-
-    return res.download(
-      path.resolve(resume.filePath),
-      resume.fileName
-    );
+    return res.status(410).json({
+      error: "This older CV file is no longer stored on the server. Ask the candidate to upload it again; new uploads will be retained.",
+    });
   } catch (err) {
     console.error("DOWNLOAD RESUME ERROR:", err);
-
     return res.status(500).json({
       error: "Failed to download resume",
       details: err.message,
