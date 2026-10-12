@@ -41,12 +41,23 @@ export default function CandidatesList() {
       link.click();
 
       link.remove();
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (err) {
-      alert(
-        err.response?.data?.error ||
-          "Failed to download applicant CV"
-      );
+      let message = err.response?.data?.error || "Failed to download applicant CV";
+      const responseData = err.response?.data;
+
+      if (responseData instanceof Blob) {
+        try {
+          const payload = JSON.parse(await responseData.text());
+          message = payload.error || payload.details || message;
+        } catch {
+          // Keep the generic message when the response body is not JSON.
+        }
+      } else if (responseData?.details) {
+        message = responseData.details;
+      }
+
+      alert(message);
     } finally {
       setDownloading("");
     }
