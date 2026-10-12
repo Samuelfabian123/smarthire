@@ -3,14 +3,16 @@ const Job = require("../models/Job");
 const Resume = require("../models/Resume");
 const Match = require("../models/Match");
 
-const NLP_SERVICE_URL =
-  process.env.NLP_SERVICE_URL || "http://localhost:5001";
+const NLP_SERVICE_URL = (
+  process.env.NLP_SERVICE_URL || "http://localhost:5001"
+).replace(/\/+$/, "");
 
 async function scoreMatch(resumeText, jobText) {
-  const response = await axios.post(`${NLP_SERVICE_URL}/match`, {
-    resumeText,
-    jobText,
-  });
+  const response = await axios.post(
+    `${NLP_SERVICE_URL}/match`,
+    { resumeText, jobText },
+    { timeout: 60000 }
+  );
 
   return response.data;
 }
@@ -34,6 +36,12 @@ exports.matchResumeToJob = async (req, res) => {
     if (!resume) {
       return res.status(400).json({
         error: "Upload a resume first",
+      });
+    }
+
+    if (!resume.extractedText || !resume.extractedText.trim()) {
+      return res.status(400).json({
+        error: "The uploaded resume has no readable text. Please upload a text-based PDF or DOCX.",
       });
     }
 
@@ -84,9 +92,12 @@ ${requiredSkills}
   } catch (err) {
     console.error("Matching error:", err);
 
-    res.status(500).json({
-      error: "Matching failed",
-      details: err.message,
+    const unavailable = ["ECONNREFUSED", "ENOTFOUND", "ECONNABORTED"].includes(err.code);
+    res.status(unavailable ? 503 : 500).json({
+      error: unavailable
+        ? "AI matching service is unavailable"
+        : "Matching failed",
+      details: err.response?.data?.details || err.response?.data?.error || err.message,
     });
   }
 };
@@ -113,7 +124,7 @@ exports.getRankedCandidates = async (req, res) => {
       job: jobId,
     })
       .populate("jobSeeker", "name email phone")
-      .populate("resume", "fileName filePath")
+      .populate("resume", "fileName")
       .sort({ finalScore: -1 });
 
     res.json(matches);
