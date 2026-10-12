@@ -14,13 +14,34 @@ const app = express();
 
 connectDB();
 
+const configuredClientOrigins = (process.env.CLIENT_URL || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .map((value) => {
+    try {
+      return new URL(value).origin;
+    } catch {
+      return value.replace(/\/$/, "");
+    }
+  });
+
+const allowedOrigins = new Set([
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://smarthire-ldqt.onrender.com",
+  ...configuredClientOrigins,
+]);
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://smarthire-ldqt.onrender.com",
-    ],
+    origin(origin, callback) {
+      // Requests without Origin (for example health checks) are not browser CORS requests.
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Origin not allowed by CORS"));
+    },
     credentials: true,
   })
 );
