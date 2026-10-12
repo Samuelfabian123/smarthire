@@ -18,11 +18,6 @@ export default function Navbar() {
     navigate("/login");
   }
 
-  function handlePostJob() {
-    closeMobile();
-    navigate(user ? (user.role === "employer" ? "/jobs/new" : "/dashboard/jobseeker") : "/register");
-  }
-
   return (
     <nav className="relative z-40 border-b border-line bg-paper px-4 py-3 sm:px-6 md:px-10">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
@@ -93,10 +88,7 @@ export default function Navbar() {
               </>
             )}
             {user && (
-              <>
-                <button type="button" onClick={handlePostJob} className="rounded-xl px-4 py-3 text-left font-medium text-slate-700 hover:bg-slate-50">Post a job</button>
-                <button type="button" onClick={handleLogout} className="rounded-xl border border-slate-200 px-4 py-3 text-left font-medium text-slate-700">Log out</button>
-              </>
+              <button type="button" onClick={handleLogout} className="rounded-xl border border-slate-200 px-4 py-3 text-left font-medium text-slate-700">Log out</button>
             )}
           </div>
         </div>
