@@ -33,8 +33,13 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Runs on `http://localhost:5001`. First run downloads the Sentence-BERT model
-(~80MB) — needs internet access once.
+Runs on `http://localhost:5001` locally. First run downloads the Sentence-BERT model
+and its supporting libraries, so allow time and memory for the first startup. For production, use
+Gunicorn rather than Flask's development server:
+```bash
+gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+```
+The service reads the hosting platform's `PORT` variable (and defaults to 5001 locally).
 
 Test it:
 ```bash
@@ -87,7 +92,11 @@ Runs on `http://localhost:5173`.
 
 ## Deployment notes
 
-- **Frontend:** Vercel or GitHub Pages
-- **Backend:** Render
-- **NLP service:** Render (separate service — needs more memory for the BERT model)
+- **Frontend:** Vercel or Render Static Site
+- **Backend:** Render Web Service (root directory: `server`; build: `npm install`; start: `npm start`)
+- **NLP service:** a separate Render Web Service (root directory: `nlp-service`; build: `pip install -r requirements.txt`; start: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120`)
 - **Database:** MongoDB Atlas
+
+After deploying the NLP service, set the backend's `NLP_SERVICE_URL` environment variable to that service's public base URL (for example, `https://your-nlp-service.onrender.com`, without `/match`). Do not use `localhost:5001` in the deployed backend. Set `CLIENT_URL` to the exact frontend origin (for example, the Vercel or Render frontend URL); multiple origins can be comma-separated. Set the frontend's `VITE_API_URL` to the backend URL ending in `/api`.
+
+Render can take a while to download/load the embedding model on first start, and the Sentence-Transformer model uses significant memory. Confirm that the selected service instance has enough memory and that `/health` responds before testing matching.
