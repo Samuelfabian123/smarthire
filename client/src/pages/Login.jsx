@@ -56,6 +56,7 @@ function Login() {
 
   return (
     <div
+      className="login-page"
       style={{
         minHeight: "100vh",
         backgroundColor: "#F7F5EE",
@@ -66,6 +67,7 @@ function Login() {
       }}
     >
       <div
+        className="login-card"
         style={{
           width: "100%",
           maxWidth: "900px",
@@ -79,6 +81,7 @@ function Login() {
         {/* GREEN WELCOME SIDE */}
 
         <div
+          className="login-welcome-panel"
           style={{
             width: "45%",
             backgroundColor: "#14231C",
@@ -151,6 +154,7 @@ function Login() {
         {/* LOGIN SIDE */}
 
         <div
+          className="login-form-panel"
           style={{
             width: "55%",
             padding: "55px 50px",

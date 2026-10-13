@@ -18,7 +18,11 @@ export default function BrowseJobs() {
       const { data } = await api.post(`/matches/job/${jobId}`);
       setScores((prev) => ({ ...prev, [jobId]: data.match.finalScore }));
     } catch (err) {
-      setError(err.response?.data?.error || "Matching failed. Upload a resume first.");
+      const apiError = err.response?.data;
+      const message = apiError?.details
+        ? `${apiError.error || "Matching failed"}: ${apiError.details}`
+        : apiError?.error || err.message || "Matching failed. Upload a resume first.";
+      setError(message);
     } finally {
       setMatchingId(null);
     }
@@ -34,16 +38,16 @@ export default function BrowseJobs() {
       )}
       <div className="card divide-y divide-line">
         {jobs.map((job) => (
-          <div key={job._id} className="p-4">
-            <div className="flex justify-between items-start gap-4">
-              <div>
+          <div key={job._id} className="p-4 sm:p-5">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-ink">{job.title}</p>
                 <p className="text-sm text-muted">{job.location}</p>
                 <p className="text-sm text-ink mt-2 leading-relaxed">
                   {job.description.slice(0, 160)}…
                 </p>
               </div>
-              <div className="text-right shrink-0">
+              <div className="flex w-full shrink-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
                 {scores[job._id] !== undefined ? (
                   <p className="font-serif text-2xl text-emerald">
                     {(scores[job._id] * 100).toFixed(0)}%

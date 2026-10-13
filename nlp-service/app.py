@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 
@@ -17,14 +18,22 @@ def calculate_semantic_score(resume_text, job_text):
     )
 
     score = cosine_similarity(
-        [embeddings[0]],
-        [embeddings[1]]
+        [embeddings[0]], [embeddings[1]]
     )[0][0]
 
-    # Keep score between 0 and 1
-    score = max(0.0, min(1.0, float(score)))
+    return max(0.0, min(1.0, float(score)))
 
-    return score
+
+def calculate_tfidf_score(resume_text, job_text):
+    """Measure lexical similarity using TF-IDF, returning a 0-1 score."""
+    try:
+        vectorizer = TfidfVectorizer(stop_words="english")
+        vectors = vectorizer.fit_transform([resume_text, job_text])
+        score = cosine_similarity(vectors[0:1], vectors[1:2])[0][0]
+        return max(0.0, min(1.0, float(score)))
+    except ValueError:
+        # Empty/fully filtered text should not break the matching request.
+        return 0.0
 
 
 def normalize_text(text):
@@ -124,25 +133,20 @@ def match():
         )
 
         # ---------------------------------------------
-        # 2. Employer-specific skill matching
+        # 2. Keyword similarity and employer-specific skills
         # ---------------------------------------------
+        tfidf_score = calculate_tfidf_score(resume_text, job_text)
         required_skills = extract_required_skills(job_text)
-
-        skill_score = calculate_skill_score(
-            resume_text,
-            required_skills
-        )
+        skill_score = calculate_skill_score(resume_text, required_skills)
 
         # ---------------------------------------------
         # 3. Final SmartHire score
         #
-        # 60% semantic understanding
-        # 40% required skill matching
+        # TF-IDF term similarity: 40%
+        # Sentence-Transformer semantic similarity: 60%
+        # Required skills are returned to explain the match.
         # ---------------------------------------------
-        final_score = (
-            (semantic_score * 0.60) +
-            (skill_score * 0.40)
-        )
+        final_score = (tfidf_score * 0.40) + (semantic_score * 0.60)
 
         final_score = max(
             0.0,
@@ -159,7 +163,7 @@ def match():
         ]
 
         return jsonify({
-            "tfidfScore": round(semantic_score, 4),
+            "tfidfScore": round(tfidf_score, 4),
             "bertScore": round(semantic_score, 4),
             "skillScore": round(skill_score, 4),
             "finalScore": round(final_score, 4),
@@ -175,8 +179,11 @@ def match():
 
 
 if __name__ == "__main__":
+    import os
+
+    # Render and other hosts provide a PORT environment variable.
     app.run(
         host="0.0.0.0",
-        port=5001,
+        port=int(os.environ.get("PORT", "5001")),
         debug=False
     )

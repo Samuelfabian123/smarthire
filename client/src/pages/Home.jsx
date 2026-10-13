@@ -584,25 +584,28 @@ export default function Home() {
             onSubmit={handleSearch}
             className="rounded-2xl border border-slate-100 bg-white p-3 shadow-2xl shadow-slate-900/10"
           >
-            <div className="grid gap-3 md:grid-cols-[1.25fr_0.9fr_auto]">
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-4">
+            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)_auto]">
+              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10">
                 <Search size={19} className="shrink-0 text-slate-400" />
 
                 <input
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder="Job title, skill or company"
-                  className="h-12 w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                  aria-label="Search by job title, skill or company"
+                  autoComplete="off"
+                  className="h-12 min-w-0 flex-1 bg-white text-base text-slate-900 caret-emerald-700 outline-none placeholder:text-slate-500 md:text-sm"
                 />
               </div>
 
-              <div className="relative flex items-center gap-3 rounded-xl border border-slate-200 px-4">
+              <div className="relative flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10">
                 <MapPin size={19} className="shrink-0 text-slate-400" />
 
                 <select
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="h-12 w-full appearance-none bg-transparent text-sm text-slate-700 outline-none"
+                  aria-label="Filter jobs by location"
+                  className="h-12 min-w-0 w-full flex-1 appearance-none bg-white text-base text-slate-900 outline-none md:text-sm"
                 >
                   <option value="">Location</option>
                   {locations.map((city) => (
