@@ -24,9 +24,7 @@ exports.matchResumeToJob = async (req, res) => {
     const job = await Job.findById(jobId);
 
     if (!job) {
-      return res.status(404).json({
-        error: "Job not found",
-      });
+      return res.status(404).json({ error: "Job not found" });
     }
 
     const resume = await Resume.findOne({
@@ -39,17 +37,16 @@ exports.matchResumeToJob = async (req, res) => {
       });
     }
 
-    if (!resume.extractedText || !resume.extractedText.trim()) {
+    if (!resume.extractedText?.trim()) {
       return res.status(400).json({
-        error: "The uploaded resume has no readable text. Please upload a text-based PDF or DOCX.",
+        error:
+          "Your CV has no readable text. Please upload a text-based PDF or DOCX.",
       });
     }
 
-    // Combine the employer's job description
-    // with the specific skills required for the job.
     const requiredSkills = Array.isArray(job.skillsRequired)
-      ? job.skillsRequired.join(", ")
-      : "";
+      ? job.skillsRequired
+      : [];
 
     const jobText = `
 Job Title: ${job.title || ""}
@@ -58,7 +55,7 @@ Job Description:
 ${job.description || ""}
 
 Required Skills:
-${requiredSkills}
+${requiredSkills.join(", ")}
 `.trim();
 
     const scores = await scoreMatch(
@@ -66,38 +63,90 @@ ${requiredSkills}
       jobText
     );
 
+    const matchedSkills = Array.isArray(scores.matchedSkills)
+      ? scores.matchedSkills
+      : [];
+
+    const detectedRequiredSkills = Array.isArray(
+      scores.requiredSkills
+    )
+      ? scores.requiredSkills
+      : requiredSkills;
+
+    const missingSkills = Array.isArray(scores.missingSkills)
+      ? scores.missingSkills
+      : detectedRequiredSkills.filter(
+          (skill) =>
+            !matchedSkills.some(
+              (matched) =>
+                matched.toLowerCase() === skill.toLowerCase()
+            )
+        );
+
     const match = await Match.findOneAndUpdate(
       {
         job: job._id,
         resume: resume._id,
       },
       {
-        job: job._id,
-        resume: resume._id,
-        jobSeeker: req.user.id,
-        tfidfScore: scores.tfidfScore,
-        bertScore: scores.bertScore,
-        finalScore: scores.finalScore,
+        $set: {
+          job: job._id,
+          resume: resume._id,
+          jobSeeker: req.user.id,
+          tfidfScore: scores.tfidfScore ?? 0,
+          bertScore: scores.bertScore ?? 0,
+          finalScore: scores.finalScore ?? 0,
+          matchedSkills,
+          requiredSkills: detectedRequiredSkills,
+          missingSkills,
+          skillScore: scores.skillScore ?? 0,
+        },
       },
       {
         upsert: true,
         new: true,
+        runValidators: true,
       }
     );
 
-    res.json({
+    return res.json({
       message: "Match scored",
       match,
+      matchedSkills,
+      requiredSkills: detectedRequiredSkills,
+      missingSkills,
+      skillScore: scores.skillScore ?? 0,
+      finalScore: scores.finalScore ?? 0,
     });
   } catch (err) {
-    console.error("Matching error:", err);
+    console.error(
+      "Matching error:",
+      err.response?.data || err.message
+    );
 
-    const unavailable = ["ECONNREFUSED", "ENOTFOUND", "ECONNABORTED"].includes(err.code);
-    res.status(unavailable ? 503 : 500).json({
+    const status = err.response?.status;
+    const unavailable = [
+      "ECONNREFUSED",
+      "ENOTFOUND",
+      "ECONNABORTED",
+      "ETIMEDOUT",
+    ].includes(err.code);
+
+    if (status === 429) {
+      return res.status(429).json({
+        error:
+          "The AI matching service is temporarily busy. Please try again shortly.",
+      });
+    }
+
+    return res.status(unavailable ? 503 : 500).json({
       error: unavailable
         ? "AI matching service is unavailable"
         : "Matching failed",
-      details: err.response?.data?.details || err.response?.data?.error || err.message,
+      details:
+        err.response?.data?.details ||
+        err.response?.data?.error ||
+        err.message,
     });
   }
 };
@@ -105,13 +154,10 @@ ${requiredSkills}
 exports.getRankedCandidates = async (req, res) => {
   try {
     const { jobId } = req.params;
-
     const job = await Job.findById(jobId);
 
     if (!job) {
-      return res.status(404).json({
-        error: "Job not found",
-      });
+      return res.status(404).json({ error: "Job not found" });
     }
 
     if (String(job.employer) !== req.user.id) {
@@ -120,16 +166,14 @@ exports.getRankedCandidates = async (req, res) => {
       });
     }
 
-    const matches = await Match.find({
-      job: jobId,
-    })
+    const matches = await Match.find({ job: jobId })
       .populate("jobSeeker", "name email phone")
       .populate("resume", "fileName")
       .sort({ finalScore: -1 });
 
-    res.json(matches);
+    return res.json(matches);
   } catch (err) {
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to fetch candidates",
       details: err.message,
     });
@@ -144,9 +188,9 @@ exports.getMyMatches = async (req, res) => {
       .populate("job", "title location")
       .sort({ finalScore: -1 });
 
-    res.json(matches);
+    return res.json(matches);
   } catch (err) {
-    res.status(500).json({
+    return res.status(500).json({
       error: "Failed to fetch matches",
       details: err.message,
     });
