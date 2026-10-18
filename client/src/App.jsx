@@ -1,13 +1,11 @@
 import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
-
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-
 import JobSeekerDashboard from "./pages/JobSeekerDashboard";
 import JobSeekerProfile from "./pages/JobSeekerProfile.jsx";
 import EmployerDashboard from "./pages/EmployerDashboard";
@@ -15,6 +13,7 @@ import EmployerProfile from "./pages/EmployerProfile.jsx";
 import PostJob from "./pages/PostJob";
 import BrowseJobs from "./pages/BrowseJobs";
 import CandidatesList from "./pages/CandidatesList";
+import CandidateDetails from "./pages/CandidateDetails";
 
 export default function App() {
   return (
@@ -23,22 +22,11 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={<Home />} />
-
         <Route path="/login" element={<Login />} />
-
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
-
-        <Route
-          path="/reset-password/:token"
-          element={<ResetPassword />}
-        />
-
-        {/* JOB SEEKER DASHBOARD */}
         <Route
           path="/dashboard/jobseeker"
           element={
@@ -48,9 +36,8 @@ export default function App() {
           }
         />
 
-        {/* JOB SEEKER PROFILE */}
         <Route
-          path="/profile/jobseeker"
+          path="/dashboard/jobseeker/profile"
           element={
             <ProtectedRoute role="jobseeker">
               <JobSeekerProfile />
@@ -58,7 +45,6 @@ export default function App() {
           }
         />
 
-        {/* EMPLOYER DASHBOARD */}
         <Route
           path="/dashboard/employer"
           element={
@@ -68,9 +54,8 @@ export default function App() {
           }
         />
 
-        {/* EMPLOYER / COMPANY PROFILE */}
         <Route
-          path="/profile/employer"
+          path="/dashboard/employer/profile"
           element={
             <ProtectedRoute role="employer">
               <EmployerProfile />
@@ -78,17 +63,6 @@ export default function App() {
           }
         />
 
-        {/* JOBSEEKER - BROWSE JOBS */}
-        <Route
-          path="/jobs"
-          element={
-            <ProtectedRoute role="jobseeker">
-              <BrowseJobs />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* EMPLOYER - POST JOB */}
         <Route
           path="/jobs/new"
           element={
@@ -98,12 +72,22 @@ export default function App() {
           }
         />
 
-        {/* EMPLOYER - CANDIDATES */}
+        <Route path="/jobs" element={<BrowseJobs />} />
+
         <Route
-          path="/jobs/:jobId/candidates"
+          path="/matches/job/:jobId/candidates"
           element={
             <ProtectedRoute role="employer">
               <CandidatesList />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/candidates/:candidateId"
+          element={
+            <ProtectedRoute role="employer">
+              <CandidateDetails />
             </ProtectedRoute>
           }
         />
