@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
@@ -8,7 +8,7 @@ import os
 app = Flask(__name__)
 
 # Load the semantic AI model once when the service starts.
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 
 # Standardize common alternative names for technical skills.
@@ -119,16 +119,13 @@ def skill_is_present(resume_text, skill):
 
 
 def calculate_semantic_score(resume_text, job_text):
-    """Calculate semantic similarity between a CV and a job."""
-    embeddings = model.encode(
-        [resume_text, job_text],
-        convert_to_numpy=True,
-        normalize_embeddings=True
-    )
-
+    """Calculate semantic similarity using a lightweight ONNX embedding model."""
+    # FastEmbed runs an ONNX model instead of loading PyTorch/Sentence Transformers.
+    # Embeddings are normalized so cosine similarity is straightforward.
+    embeddings = list(model.embed([resume_text, job_text]))
     score = cosine_similarity(
-        embeddings[0:1],
-        embeddings[1:2]
+        embeddings[0].reshape(1, -1),
+        embeddings[1].reshape(1, -1)
     )[0][0]
 
     return max(0.0, min(1.0, float(score)))
