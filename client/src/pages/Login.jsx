@@ -45,10 +45,20 @@ function Login() {
     } catch (err) {
       console.log("LOGIN ERROR:", err.response?.data || err.message);
 
-      setError(
-        err.response?.data?.message ||
-          "Invalid email or password. Please try again."
-      );
+      const responseData = err.response?.data;
+
+      if (responseData?.requiresEmailVerification) {
+        setError(
+          responseData.error ||
+            "Please verify your email before signing in. Return to the verification screen to enter your code."
+        );
+      } else {
+        setError(
+          responseData?.error ||
+            responseData?.message ||
+            "Invalid email or password. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
