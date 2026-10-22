@@ -175,7 +175,38 @@ def extract_required_skills(job_text):
         )
 
     if not heading_match:
-        return []
+        # Many job descriptions mention required technologies in ordinary
+        # sentences instead of using a dedicated "Skills" heading. In that
+        # case, detect known technical skills throughout the description.
+        normalized_job = normalize_text(job_text)
+        occurrences = []
+
+        for alias in sorted(SKILL_ALIASES, key=len, reverse=True):
+            pattern = (
+                r"(?<![a-z0-9])"
+                + re.escape(alias)
+                + r"(?![a-z0-9])"
+            )
+
+            for match in re.finditer(pattern, normalized_job):
+                occurrences.append((
+                    match.start(),
+                    -len(alias),
+                    SKILL_ALIASES[alias]
+                ))
+
+        # Keep the order in which skills appear and prefer longer aliases
+        # when two aliases refer to the same text.
+        occurrences.sort()
+        detected_skills = []
+        seen_skills = set()
+
+        for _, _, skill in occurrences:
+            if skill not in seen_skills:
+                detected_skills.append(skill)
+                seen_skills.add(skill)
+
+        return detected_skills
 
     skills_text = job_text[heading_match.end():]
 
