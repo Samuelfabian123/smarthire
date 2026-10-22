@@ -2,10 +2,31 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 const User = require("../models/User");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const mailer = nodemailer.createTransport({
+  host: process.env.MAIL_HOST || "smtp.gmail.com",
+  port: Number(process.env.MAIL_PORT || 587),
+  secure: Number(process.env.MAIL_PORT || 587) === 465,
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+  },
+});
+
+async function sendSmartHireEmail({ to, subject, html }) {
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+    throw new Error("Gmail SMTP is not configured. Check MAIL_USER and MAIL_PASS.");
+  }
+
+  return mailer.sendMail({
+    from: `SmartHire <${process.env.MAIL_USER}>`,
+    to,
+    subject,
+    html,
+  });
+}
 
 const VERIFICATION_EXPIRY_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -54,43 +75,23 @@ function escapeHtml(value = "") {
 }
 
 async function sendVerificationEmail(user, code) {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not configured");
-  }
-
-  const { error } = await resend.emails.send({
-    from: process.env.MAIL_FROM || "onboarding@resend.dev",
-    to: [user.email],
+  await sendSmartHireEmail({
+    to: user.email,
     subject: "Verify your SmartHire email",
     html: `
       <div style="font-family:Arial,sans-serif;background:#F7F5EE;padding:40px 20px;">
         <div style="max-width:520px;margin:0 auto;background:#fff;padding:32px;border-radius:16px;border:1px solid #DCD8CC;">
           <h1 style="color:#16241E;">SmartHire</h1>
           <h2 style="color:#16241E;">Verify your email address</h2>
-          <p style="color:#59615C;line-height:1.6;">
-            Hello ${escapeHtml(user.firstName || user.name)},
-          </p>
-          <p style="color:#59615C;line-height:1.6;">
-            Enter this verification code in SmartHire to complete your registration:
-          </p>
-          <div style="background:#E7F0EA;padding:18px;text-align:center;border-radius:10px;font-size:30px;font-weight:bold;letter-spacing:8px;color:#234F38;">
-            ${code}
-          </div>
-          <p style="color:#737B76;line-height:1.6;">
-            This code expires in 10 minutes. Do not share it with anyone.
-          </p>
-          <p style="color:#737B76;font-size:12px;">
-            If you did not create a SmartHire account, you can ignore this email.
-          </p>
+          <p style="color:#59615C;line-height:1.6;">Hello ${escapeHtml(user.firstName || user.name)},</p>
+          <p style="color:#59615C;line-height:1.6;">Enter this verification code in SmartHire to complete your registration:</p>
+          <div style="background:#E7F0EA;padding:18px;text-align:center;border-radius:10px;font-size:30px;font-weight:bold;letter-spacing:8px;color:#234F38;">${code}</div>
+          <p style="color:#737B76;line-height:1.6;">This code expires in 10 minutes. Do not share it with anyone.</p>
+          <p style="color:#737B76;font-size:12px;">If you did not create a SmartHire account, you can ignore this email.</p>
         </div>
       </div>
     `,
   });
-
-  if (error) {
-    console.error("VERIFICATION EMAIL ERROR:", error);
-    throw new Error("Could not send verification email");
-  }
 }
 
 // REGISTER
@@ -212,7 +213,7 @@ exports.register = async (req, res) => {
 
       return res.status(503).json({
         error:
-          "Your account was created, but the verification email could not be sent. Please use Resend verification code.",
+          "Your account was created, but the verification email could not be sent. Please request a new verification code.",
         email: createdUser.email,
         accountCreated: true,
       });
@@ -368,7 +369,7 @@ exports.resendVerification = async (req, res) => {
     try {
       await sendVerificationEmail(user, verificationCode);
     } catch (emailError) {
-      console.error("RESEND VERIFICATION ERROR:", emailError.message);
+      console.error("RESEND VERIFICATION EMAIL ERROR:", emailError.message);
 
       return res.status(503).json({
         error: "Could not send the verification email. Please try again shortly.",
@@ -471,9 +472,8 @@ exports.forgotPassword = async (req, res) => {
 
     const resetLink = `${clientUrl}/reset-password/${resetToken}`;
 
-    const { error } = await resend.emails.send({
-      from: process.env.MAIL_FROM || "onboarding@resend.dev",
-      to: [user.email],
+    await sendSmartHireEmail({
+      to: user.email,
       subject: "Reset your SmartHire password",
       html: `
         <div style="font-family:Arial,sans-serif;background:#F7F5EE;padding:40px 20px;">
@@ -503,14 +503,6 @@ exports.forgotPassword = async (req, res) => {
         </div>
       `,
     });
-
-    if (error) {
-      console.error("RESEND ERROR:", error);
-
-      return res.status(500).json({
-        error: "Could not send password reset email.",
-      });
-    }
 
     return res.status(200).json({
       message:
