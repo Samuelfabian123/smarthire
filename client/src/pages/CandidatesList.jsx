@@ -5,14 +5,18 @@ import api from "../api/axios";
 
 function formatPercent(value) {
   if (value === null || value === undefined || value === "") return "—";
+
   const number = Number(value);
   if (!Number.isFinite(number)) return "—";
+
   const percentage = number <= 1 ? number * 100 : number;
+
   return `${Math.round(Math.min(100, Math.max(0, percentage)))}%`;
 }
 
 function formatDate(value) {
   if (!value) return "Date unavailable";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Date unavailable";
 
@@ -25,6 +29,7 @@ function formatDate(value) {
 
 function getInitials(name) {
   if (!name || typeof name !== "string") return "A";
+
   return name
     .trim()
     .split(/\s+/)
@@ -124,7 +129,12 @@ export default function CandidatesList() {
       }
     }
 
-    loadCandidates();
+    if (jobId) {
+      loadCandidates();
+    } else {
+      setError("The job ID is missing. Please return to your dashboard.");
+      setLoading(false);
+    }
 
     return () => {
       active = false;
@@ -179,7 +189,8 @@ export default function CandidatesList() {
       return;
     }
 
-    navigate(`/jobs/${jobId}/candidates/${candidate._id}`);
+    // Keep this URL consistent with the route in App.jsx.
+    navigate(`/matches/job/${jobId}/candidates/${candidate._id}`);
   }
 
   return (
@@ -304,9 +315,7 @@ export default function CandidatesList() {
               const name =
                 profile?.fullName || user?.name || "Applicant";
 
-              const phone =
-                profile?.phone || user?.phone || "";
-
+              const phone = profile?.phone || user?.phone || "";
               const photoUrl = profile?.photoUrl || "";
               const resumeId = candidate.resume?._id;
 
@@ -317,10 +326,7 @@ export default function CandidatesList() {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start gap-5">
                     <div className="flex items-start gap-4 min-w-0 flex-1">
-                      <CandidateAvatar
-                        name={name}
-                        photoUrl={photoUrl}
-                      />
+                      <CandidateAvatar name={name} photoUrl={photoUrl} />
 
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">

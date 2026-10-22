@@ -12,6 +12,7 @@ function formatPercent(value) {
   if (!Number.isFinite(number)) return "—";
 
   const percentage = number <= 1 ? number * 100 : number;
+
   return `${Math.round(Math.min(100, Math.max(0, percentage)))}%`;
 }
 
@@ -78,6 +79,12 @@ export default function CandidateDetails() {
     let active = true;
 
     async function loadCandidate() {
+      if (!jobId || !candidateId) {
+        setError("The job or candidate ID is missing.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError("");
 
@@ -133,10 +140,21 @@ export default function CandidateDetails() {
         1000
       );
     } catch (err) {
-      window.alert(
-        err.response?.data?.error ||
-          "Unable to download the CV."
-      );
+      let message = "Unable to download the CV.";
+      const responseData = err.response?.data;
+
+      if (responseData instanceof Blob) {
+        try {
+          const payload = JSON.parse(await responseData.text());
+          message = payload.error || payload.details || message;
+        } catch {
+          // Keep the fallback message.
+        }
+      } else if (responseData?.error || responseData?.details) {
+        message = responseData.error || responseData.details;
+      }
+
+      window.alert(message);
     } finally {
       setDownloading(false);
     }
@@ -165,7 +183,7 @@ export default function CandidateDetails() {
           </p>
 
           <Link
-            to={`/jobs/${jobId}/candidates`}
+            to={`/matches/job/${jobId}/candidates`}
             className="inline-block mt-6 text-sm font-semibold text-[#2F6F4E] hover:underline"
           >
             ← Back to applicants
@@ -209,7 +227,7 @@ export default function CandidateDetails() {
     <main className="min-h-screen bg-[#F7F5EE]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <Link
-          to={`/jobs/${jobId}/candidates`}
+          to={`/matches/job/${jobId}/candidates`}
           className="inline-flex text-sm font-semibold text-[#2F6F4E] hover:underline mb-6"
         >
           ← Back to applicants
@@ -282,9 +300,7 @@ export default function CandidateDetails() {
             {resume._id ? (
               <button
                 type="button"
-                onClick={() =>
-                  downloadCV(resume._id, resume.fileName)
-                }
+                onClick={() => downloadCV(resume._id, resume.fileName)}
                 disabled={downloading}
                 className="inline-flex items-center justify-center rounded-lg border border-[#DCD8CC] text-[#24352B] px-4 py-2.5 text-sm font-semibold hover:bg-[#F7F5EE] disabled:opacity-60"
               >

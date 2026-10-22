@@ -1,11 +1,25 @@
+
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
+    // Keep name for compatibility with existing SmartHire features.
     name: {
       type: String,
       required: true,
       trim: true,
+    },
+
+    firstName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    surname: {
+      type: String,
+      trim: true,
+      default: "",
     },
 
     email: {
@@ -36,9 +50,39 @@ const userSchema = new mongoose.Schema(
     companyName: {
       type: String,
       trim: true,
+      default: "",
     },
 
-    // Password reset fields
+    companyAddress: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // Email verification.
+    // Existing accounts remain usable; new registration will set
+    // this to false explicitly in the registration controller.
+    isEmailVerified: {
+      type: Boolean,
+      default: true,
+    },
+
+    emailVerificationCodeHash: {
+      type: String,
+      default: null,
+    },
+
+    emailVerificationExpires: {
+      type: Date,
+      default: null,
+    },
+
+    emailVerificationLastSentAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Password reset fields — keep these for the existing flow.
     resetPasswordToken: {
       type: String,
       default: null,

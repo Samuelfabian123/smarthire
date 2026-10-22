@@ -1,112 +1,425 @@
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { Resend } = require("resend");
 const User = require("../models/User");
 
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+const VERIFICATION_EXPIRY_MS = 10 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
 function generateToken(user) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
   return jwt.sign(
     {
       id: user._id,
       role: user.role,
     },
     process.env.JWT_SECRET,
-    {
-      expiresIn: "7d",
-    }
+    { expiresIn: "7d" }
   );
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function publicUser(user) {
+  return {
+    id: user._id,
+    name: user.name,
+    firstName: user.firstName || "",
+    surname: user.surname || "",
+    email: user.email,
+    phone: user.phone || "",
+    role: user.role,
+    companyName: user.companyName || "",
+    isEmailVerified: user.isEmailVerified,
+  };
+}
 
-// Register
+function escapeHtml(value = "") {
+  return String(value).replace(/[&<>"']/g, (character) => {
+    const replacements = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+
+    return replacements[character];
+  });
+}
+
+async function sendVerificationEmail(user, code) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
+  const { error } = await resend.emails.send({
+    from: process.env.MAIL_FROM || "onboarding@resend.dev",
+    to: [user.email],
+    subject: "Verify your SmartHire email",
+    html: `
+      <div style="font-family:Arial,sans-serif;background:#F7F5EE;padding:40px 20px;">
+        <div style="max-width:520px;margin:0 auto;background:#fff;padding:32px;border-radius:16px;border:1px solid #DCD8CC;">
+          <h1 style="color:#16241E;">SmartHire</h1>
+          <h2 style="color:#16241E;">Verify your email address</h2>
+          <p style="color:#59615C;line-height:1.6;">
+            Hello ${escapeHtml(user.firstName || user.name)},
+          </p>
+          <p style="color:#59615C;line-height:1.6;">
+            Enter this verification code in SmartHire to complete your registration:
+          </p>
+          <div style="background:#E7F0EA;padding:18px;text-align:center;border-radius:10px;font-size:30px;font-weight:bold;letter-spacing:8px;color:#234F38;">
+            ${code}
+          </div>
+          <p style="color:#737B76;line-height:1.6;">
+            This code expires in 10 minutes. Do not share it with anyone.
+          </p>
+          <p style="color:#737B76;font-size:12px;">
+            If you did not create a SmartHire account, you can ignore this email.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error("VERIFICATION EMAIL ERROR:", error);
+    throw new Error("Could not send verification email");
+  }
+}
+
+// REGISTER
 exports.register = async (req, res) => {
-  try {
-    const { name, email, password, role, companyName } = req.body;
+  let createdUser;
 
-    if (!name || !email || !password || !role) {
+  try {
+    const {
+      name,
+      firstName,
+      surname,
+      email,
+      password,
+      role,
+      companyName,
+      companyAddress,
+      phone,
+    } = req.body;
+
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+
+    if (!normalizedEmail || !password || !role) {
       return res.status(400).json({
-        error: "All fields are required",
+        error: "Email, password and account type are required.",
       });
     }
 
     if (!["jobseeker", "employer"].includes(role)) {
       return res.status(400).json({
-        error: "Role must be jobseeker or employer",
+        error: "Role must be jobseeker or employer.",
       });
     }
 
-    const existingUser = await User.findOne({
-      email: email.toLowerCase(),
-    });
+    if (typeof password !== "string" || password.length < 6) {
+      return res.status(400).json({
+        error: "Password must be at least 6 characters.",
+      });
+    }
+
+    let cleanFirstName = String(firstName || "").trim();
+    let cleanSurname = String(surname || "").trim();
+
+    // Backward compatibility with the old registration form.
+    if (role === "jobseeker" && (!cleanFirstName || !cleanSurname)) {
+      const oldName = String(name || "").trim();
+      const parts = oldName.split(/\s+/).filter(Boolean);
+
+      if (!cleanFirstName && parts.length > 0) {
+        cleanFirstName = parts[0];
+      }
+
+      if (!cleanSurname && parts.length > 1) {
+        cleanSurname = parts.slice(1).join(" ");
+      }
+    }
+
+    if (role === "jobseeker" && (!cleanFirstName || !cleanSurname)) {
+      return res.status(400).json({
+        error: "First name and surname are required.",
+      });
+    }
+
+    const cleanCompanyName = String(companyName || "").trim();
+
+    if (role === "employer" && !cleanCompanyName) {
+      return res.status(400).json({
+        error: "Company name is required for employer accounts.",
+      });
+    }
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
       return res.status(409).json({
-        error: "Email already registered",
+        error: "Email already registered. Please log in or use another email.",
       });
     }
 
+    const finalName =
+      role === "jobseeker"
+        ? `${cleanFirstName} ${cleanSurname}`.trim()
+        : cleanCompanyName;
+
+    const verificationCode = crypto
+      .randomInt(100000, 1000000)
+      .toString();
+
+    const verificationCodeHash = crypto
+      .createHash("sha256")
+      .update(verificationCode)
+      .digest("hex");
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
+    createdUser = await User.create({
+      name: finalName,
+      firstName: role === "jobseeker" ? cleanFirstName : "",
+      surname: role === "jobseeker" ? cleanSurname : "",
+      email: normalizedEmail,
+      phone: String(phone || "").trim(),
       password: hashedPassword,
       role,
-      companyName:
-        role === "employer" ? companyName?.trim() : undefined,
+      companyName: role === "employer" ? cleanCompanyName : "",
+      companyAddress:
+        role === "employer" ? String(companyAddress || "").trim() : "",
+      isEmailVerified: false,
+      emailVerificationCodeHash: verificationCodeHash,
+      emailVerificationExpires: new Date(
+        Date.now() + VERIFICATION_EXPIRY_MS
+      ),
+      emailVerificationLastSentAt: new Date(),
     });
 
-    const token = generateToken(user);
+    try {
+      await sendVerificationEmail(createdUser, verificationCode);
+    } catch (emailError) {
+      // Keep the unverified account so the user can request another code.
+      console.error("REGISTRATION EMAIL ERROR:", emailError.message);
+
+      return res.status(503).json({
+        error:
+          "Your account was created, but the verification email could not be sent. Please use Resend verification code.",
+        email: createdUser.email,
+        accountCreated: true,
+      });
+    }
 
     return res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      message: "Verification code sent. Check your email to continue.",
+      email: createdUser.email,
+      requiresEmailVerification: true,
     });
   } catch (err) {
     console.error("REGISTRATION ERROR:", err);
 
+    if (err.code === 11000) {
+      return res.status(409).json({
+        error: "Email already registered.",
+      });
+    }
+
     return res.status(500).json({
-      error: "Registration failed",
-      details: err.message,
+      error: "Registration failed. Please try again.",
     });
   }
 };
 
-// Login
+// VERIFY EMAIL
+exports.verifyEmail = async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const code = String(req.body.code || "").trim();
+
+    if (!email || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({
+        error: "Enter your email address and the 6-digit verification code.",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({
+        error: "Invalid email or verification code.",
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(200).json({
+        message: "Email already verified. You can log in.",
+        alreadyVerified: true,
+      });
+    }
+
+    if (
+      !user.emailVerificationCodeHash ||
+      !user.emailVerificationExpires ||
+      user.emailVerificationExpires.getTime() <= Date.now()
+    ) {
+      return res.status(400).json({
+        error: "Verification code expired. Request a new code.",
+        codeExpired: true,
+      });
+    }
+
+    const submittedHash = crypto
+      .createHash("sha256")
+      .update(code)
+      .digest("hex");
+
+    const expected = Buffer.from(user.emailVerificationCodeHash, "hex");
+    const submitted = Buffer.from(submittedHash, "hex");
+
+    if (
+      expected.length !== submitted.length ||
+      !crypto.timingSafeEqual(expected, submitted)
+    ) {
+      return res.status(400).json({
+        error: "Invalid email or verification code.",
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationCodeHash = null;
+    user.emailVerificationExpires = null;
+    user.emailVerificationLastSentAt = null;
+
+    await user.save();
+
+    const token = generateToken(user);
+
+    return res.status(200).json({
+      message: "Email verified successfully.",
+      token,
+      user: publicUser(user),
+    });
+  } catch (err) {
+    console.error("EMAIL VERIFICATION ERROR:", err);
+
+    return res.status(500).json({
+      error: "Email verification failed. Please try again.",
+    });
+  }
+};
+
+// RESEND VERIFICATION CODE
+exports.resendVerification = async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({
+        error: "Email address is required.",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    // Avoid disclosing account details.
+    if (!user || user.isEmailVerified) {
+      return res.status(200).json({
+        message:
+          "If the account needs verification, a new code will be sent.",
+      });
+    }
+
+    const lastSentAt = user.emailVerificationLastSentAt
+      ? user.emailVerificationLastSentAt.getTime()
+      : 0;
+
+    const waitMs = RESEND_COOLDOWN_MS - (Date.now() - lastSentAt);
+
+    if (waitMs > 0) {
+      return res.status(429).json({
+        error: `Please wait ${Math.ceil(waitMs / 1000)} seconds before requesting another code.`,
+      });
+    }
+
+    const verificationCode = crypto
+      .randomInt(100000, 1000000)
+      .toString();
+
+    user.emailVerificationCodeHash = crypto
+      .createHash("sha256")
+      .update(verificationCode)
+      .digest("hex");
+
+    user.emailVerificationExpires = new Date(
+      Date.now() + VERIFICATION_EXPIRY_MS
+    );
+    user.emailVerificationLastSentAt = new Date();
+
+    await user.save();
+
+    try {
+      await sendVerificationEmail(user, verificationCode);
+    } catch (emailError) {
+      console.error("RESEND VERIFICATION ERROR:", emailError.message);
+
+      return res.status(503).json({
+        error: "Could not send the verification email. Please try again shortly.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "A new verification code has been sent if the account needs verification.",
+    });
+  } catch (err) {
+    console.error("RESEND VERIFICATION ERROR:", err);
+
+    return res.status(500).json({
+      error: "Unable to resend verification code.",
+    });
+  }
+};
+
+// LOGIN
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const { password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
-        error: "Email and password are required",
+        error: "Email and password are required.",
       });
     }
 
-    const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
+    const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(401).json({
-        error: "Invalid credentials",
+        error: "Invalid credentials.",
       });
     }
 
-    const passwordMatches = await bcrypt.compare(
-      password,
-      user.password
-    );
+    const passwordMatches = await bcrypt.compare(password, user.password);
 
     if (!passwordMatches) {
       return res.status(401).json({
-        error: "Invalid credentials",
+        error: "Invalid credentials.",
+      });
+    }
+
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        error: "Please verify your email before signing in.",
+        requiresEmailVerification: true,
+        email: user.email,
       });
     }
 
@@ -114,41 +427,31 @@ exports.login = async (req, res) => {
 
     return res.status(200).json({
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: publicUser(user),
     });
   } catch (err) {
     console.error("LOGIN ERROR:", err);
 
     return res.status(500).json({
-      error: "Login failed",
-      details: err.message,
+      error: "Login failed. Please try again.",
     });
   }
 };
 
-// Forgot Password
+// FORGOT PASSWORD
 exports.forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = String(req.body.email || "").trim().toLowerCase();
 
     if (!email) {
       return res.status(400).json({
-        error: "Email is required",
+        error: "Email is required.",
       });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email });
 
-    const user = await User.findOne({
-      email: normalizedEmail,
-    });
-
-    // Do not reveal whether an email exists
+    // Do not reveal whether an email exists.
     if (!user) {
       return res.status(200).json({
         message:
@@ -156,81 +459,46 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    // Create secure random token
     const resetToken = crypto.randomBytes(32).toString("hex");
 
-    // Save token and make it expire in 1 hour
     user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = new Date(
-      Date.now() + 60 * 60 * 1000
-    );
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
 
     await user.save();
 
     const clientUrl =
       process.env.CLIENT_URL || "http://localhost:5174";
 
-    const resetLink =
-      `${clientUrl}/reset-password/${resetToken}`;
+    const resetLink = `${clientUrl}/reset-password/${resetToken}`;
 
     const { error } = await resend.emails.send({
-      from:
-        process.env.MAIL_FROM || "onboarding@resend.dev",
+      from: process.env.MAIL_FROM || "onboarding@resend.dev",
       to: [user.email],
       subject: "Reset your SmartHire password",
       html: `
-        <div style="font-family: Arial, sans-serif; background:#F7F5EE; padding:40px 20px;">
-          <div style="max-width:520px; margin:0 auto; background:#ffffff; padding:32px; border-radius:16px; border:1px solid #DCD8CC;">
-            
-            <h1 style="color:#16241E; margin-bottom:8px;">
-              SmartHire
-            </h1>
-
-            <h2 style="color:#16241E;">
-              Reset your password
-            </h2>
-
-            <p style="color:#59615C; line-height:1.6;">
-              Hello ${user.name},
+        <div style="font-family:Arial,sans-serif;background:#F7F5EE;padding:40px 20px;">
+          <div style="max-width:520px;margin:0 auto;background:#fff;padding:32px;border-radius:16px;border:1px solid #DCD8CC;">
+            <h1 style="color:#16241E;">SmartHire</h1>
+            <h2 style="color:#16241E;">Reset your password</h2>
+            <p style="color:#59615C;line-height:1.6;">
+              Hello ${escapeHtml(user.name)},
             </p>
-
-            <p style="color:#59615C; line-height:1.6;">
+            <p style="color:#59615C;line-height:1.6;">
               We received a request to reset your SmartHire password.
-              Click the button below to create a new password.
+              Click below to create a new password.
             </p>
-
             <p style="margin:30px 0;">
-              <a
-                href="${resetLink}"
-                style="
-                  display:inline-block;
-                  background:#2F6F4E;
-                  color:#ffffff;
-                  text-decoration:none;
-                  padding:13px 22px;
-                  border-radius:8px;
-                  font-weight:600;
-                "
-              >
+              <a href="${resetLink}" style="display:inline-block;background:#2F6F4E;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:600;">
                 Reset my password
               </a>
             </p>
-
-            <p style="color:#737B76; font-size:13px; line-height:1.6;">
-              This link will expire in 1 hour.
+            <p style="color:#737B76;font-size:13px;line-height:1.6;">
+              This link expires in 1 hour. If you did not request a reset, ignore this email.
             </p>
-
-            <p style="color:#737B76; font-size:13px; line-height:1.6;">
-              If you did not request a password reset, you can safely ignore
-              this email.
-            </p>
-
-            <hr style="border:none; border-top:1px solid #ECE9E1; margin:25px 0;" />
-
-            <p style="color:#8A918D; font-size:12px;">
+            <hr style="border:none;border-top:1px solid #ECE9E1;margin:25px 0;" />
+            <p style="color:#8A918D;font-size:12px;">
               SmartHire — AI-powered job matching for the Nigerian job market.
             </p>
-
           </div>
         </div>
       `,
@@ -240,7 +508,7 @@ exports.forgotPassword = async (req, res) => {
       console.error("RESEND ERROR:", error);
 
       return res.status(500).json({
-        error: "Could not send password reset email",
+        error: "Could not send password reset email.",
       });
     }
 
@@ -252,12 +520,12 @@ exports.forgotPassword = async (req, res) => {
     console.error("FORGOT PASSWORD ERROR:", err);
 
     return res.status(500).json({
-      error: "Password reset request failed",
+      error: "Password reset request failed.",
     });
   }
 };
 
-// Reset Password
+// RESET PASSWORD
 exports.resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -265,32 +533,28 @@ exports.resetPassword = async (req, res) => {
 
     if (!password) {
       return res.status(400).json({
-        error: "New password is required",
+        error: "New password is required.",
       });
     }
 
-    if (password.length < 6) {
+    if (typeof password !== "string" || password.length < 6) {
       return res.status(400).json({
-        error: "Password must be at least 6 characters",
+        error: "Password must be at least 6 characters.",
       });
     }
 
     const user = await User.findOne({
       resetPasswordToken: token,
-      resetPasswordExpires: {
-        $gt: new Date(),
-      },
+      resetPasswordExpires: { $gt: new Date() },
     });
 
     if (!user) {
       return res.status(400).json({
-        error: "Invalid or expired password reset link",
+        error: "Invalid or expired password reset link.",
       });
     }
 
     user.password = await bcrypt.hash(password, 10);
-
-    // Clear reset token after successful password change
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
 
@@ -304,7 +568,7 @@ exports.resetPassword = async (req, res) => {
     console.error("RESET PASSWORD ERROR:", err);
 
     return res.status(500).json({
-      error: "Password reset failed",
+      error: "Password reset failed.",
     });
   }
 };
