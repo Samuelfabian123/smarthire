@@ -149,7 +149,7 @@ export default function JobSeekerDashboard() {
 
             {/* PROFILE BUTTON */}
             <Link
-              to="/profile/jobseeker"
+              to="/dashboard/jobseeker/profile"
               className="bg-[#2F6F4E] text-white px-5 py-3 rounded-lg text-sm font-medium text-center hover:bg-[#234F38] transition-colors whitespace-nowrap"
             >
               Edit Profile

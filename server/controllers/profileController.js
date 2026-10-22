@@ -1,164 +1,201 @@
+
 const JobSeekerProfile = require("../models/JobSeekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
+const User = require("../models/User");
 
-// ==========================================
-// JOB SEEKER PROFILE
-// ==========================================
+const getUserId = (req) => req.user?.id || req.user?._id;
 
-exports.getJobSeekerProfile = async (req, res) => {
+const getUploadedFileUrl = (file) => {
+  if (!file) return null;
+  return file.path || (file.filename ? `/uploads/${file.filename}` : null);
+};
+
+// GET /api/profile/jobseeker
+const getJobSeekerProfile = async (req, res) => {
   try {
-    const profile = await JobSeekerProfile.findOne({
-      user: req.user.id,
-    });
+    const userId = getUserId(req);
 
-    if (!profile) {
-      return res.json(null);
+    if (!userId) {
+      return res.status(401).json({ error: "Please sign in again." });
     }
 
-    res.json(profile);
-  } catch (error) {
-    console.error("Get job seeker profile error:", error);
+    const [profile, user] = await Promise.all([
+      JobSeekerProfile.findOne({ user: userId }),
+      User.findById(userId).select("name firstName surname email phone"),
+    ]);
 
-    res.status(500).json({
-      error: "Unable to load profile",
+    const firstName =
+      profile?.firstName || user?.firstName || "";
+    const surname =
+      profile?.surname || user?.surname || "";
+
+    const fullName =
+      profile?.fullName ||
+      [firstName, surname].filter(Boolean).join(" ") ||
+      user?.name ||
+      "";
+
+    return res.json({
+      ...(profile ? profile.toObject() : {}),
+      firstName,
+      surname,
+      fullName,
+      phone: profile?.phone || user?.phone || "",
+      email: user?.email || "",
+    });
+  } catch (error) {
+    console.error("Get jobseeker profile error:", error);
+    return res.status(500).json({
+      error: "Unable to load your profile.",
     });
   }
 };
 
-exports.updateJobSeekerProfile = async (req, res) => {
+// PUT /api/profile/jobseeker
+const updateJobSeekerProfile = async (req, res) => {
   try {
-    const {
-      fullName,
-      professionalTitle,
-      phone,
-      location,
-      about,
-      skills,
-      education,
-      experience,
-      portfolio,
-    } = req.body;
+    const userId = getUserId(req);
 
-    let photoUrl;
-
-    if (req.file) {
-      photoUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    if (!userId) {
+      return res.status(401).json({ error: "Please sign in again." });
     }
 
-    const updateData = {
-      user: req.user.id,
+    const firstName = String(req.body.firstName || "").trim();
+    const surname = String(req.body.surname || "").trim();
+
+    const fullName =
+      [firstName, surname].filter(Boolean).join(" ") ||
+      String(req.body.fullName || "").trim();
+
+    const profileFields = {
+      firstName,
+      surname,
       fullName,
-      professionalTitle,
-      phone,
-      location,
-      about,
-      skills,
-      education,
-      experience,
-      portfolio,
+      professionalTitle: req.body.professionalTitle || "",
+      phone: req.body.phone || "",
+      location: req.body.location || "",
+      about: req.body.about || "",
+      skills: req.body.skills || "",
+      education: req.body.education || "",
+      experience: req.body.experience || "",
+      portfolio: req.body.portfolio || "",
     };
 
+    const photoUrl = getUploadedFileUrl(req.file);
     if (photoUrl) {
-      updateData.photoUrl = photoUrl;
+      profileFields.photoUrl = photoUrl;
     }
 
     const profile = await JobSeekerProfile.findOneAndUpdate(
-      { user: req.user.id },
-      updateData,
-      {
-        new: true,
-        upsert: true,
-        runValidators: true,
-      }
+      { user: userId },
+      { $set: profileFields, $setOnInsert: { user: userId } },
+      { new: true, upsert: true, runValidators: true }
     );
 
-    res.json(profile);
-  } catch (error) {
-    console.error("Update job seeker profile error:", error);
-
-    res.status(500).json({
-      error: "Unable to save profile",
-      details: error.message,
-    });
-  }
-};
-
-// ==========================================
-// EMPLOYER / COMPANY PROFILE
-// ==========================================
-
-exports.getEmployerProfile = async (req, res) => {
-  try {
-    const profile = await EmployerProfile.findOne({
-      user: req.user.id,
-    });
-
-    if (!profile) {
-      return res.json(null);
-    }
-
-    res.json(profile);
-  } catch (error) {
-    console.error("Get employer profile error:", error);
-
-    res.status(500).json({
-      error: "Unable to load company profile",
-    });
-  }
-};
-
-exports.updateEmployerProfile = async (req, res) => {
-  try {
-    const {
-      companyName,
-      contactName,
-      email,
-      phone,
-      location,
-      industry,
-      description,
-      website,
-    } = req.body;
-
-    let logoUrl;
-
-    if (req.file) {
-      logoUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-    }
-
-    const updateData = {
-      user: req.user.id,
-      companyName,
-      contactName,
-      email,
-      phone,
-      location,
-      industry,
-      description,
-      website,
+    // Keep the main user record consistent with candidate listings.
+    const userUpdate = {
+      phone: profileFields.phone,
     };
 
+    if (firstName) userUpdate.firstName = firstName;
+    if (surname) userUpdate.surname = surname;
+    if (fullName) userUpdate.name = fullName;
+
+    await User.findByIdAndUpdate(userId, {
+      $set: userUpdate,
+    });
+
+    return res.json({
+      message: "Profile saved successfully.",
+      ...profile.toObject(),
+    });
+  } catch (error) {
+    console.error("Update jobseeker profile error:", error);
+    return res.status(500).json({
+      error: "Unable to save your profile.",
+    });
+  }
+};
+
+// GET /api/profile/employer
+const getEmployerProfile = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Please sign in again." });
+    }
+
+    const profile = await EmployerProfile.findOne({ user: userId });
+    return res.json(profile || {});
+  } catch (error) {
+    console.error("Get employer profile error:", error);
+    return res.status(500).json({
+      error: "Unable to load your company profile.",
+    });
+  }
+};
+
+// PUT /api/profile/employer
+const updateEmployerProfile = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Please sign in again." });
+    }
+
+    const fields = [
+      "companyName",
+      "contactName",
+      "email",
+      "phone",
+      "location",
+      "industry",
+      "description",
+      "website",
+    ];
+
+    const profileFields = {};
+
+    for (const field of fields) {
+      if (req.body[field] !== undefined) {
+        profileFields[field] = req.body[field];
+      }
+    }
+
+    const logoUrl = getUploadedFileUrl(req.file);
     if (logoUrl) {
-      updateData.logoUrl = logoUrl;
+      profileFields.logoUrl = logoUrl;
     }
 
     const profile = await EmployerProfile.findOneAndUpdate(
-      { user: req.user.id },
-      updateData,
-      {
-        new: true,
-        upsert: true,
-        runValidators: true,
-      }
+      { user: userId },
+      { $set: profileFields, $setOnInsert: { user: userId } },
+      { new: true, upsert: true, runValidators: true }
     );
 
-    res.json(profile);
+    if (profileFields.companyName) {
+      await User.findByIdAndUpdate(userId, {
+        $set: { companyName: profileFields.companyName },
+      });
+    }
+
+    return res.json({
+      message: "Company profile saved successfully.",
+      ...profile.toObject(),
+    });
   } catch (error) {
     console.error("Update employer profile error:", error);
-
-    res.status(500).json({
-      error: "Unable to save company profile",
-      details: error.message,
+    return res.status(500).json({
+      error: "Unable to save your company profile.",
     });
   }
+};
+
+module.exports = {
+  getJobSeekerProfile,
+  updateJobSeekerProfile,
+  getEmployerProfile,
+  updateEmployerProfile,
 };

@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 const jobSeekerProfileSchema = new mongoose.Schema(
@@ -9,28 +10,45 @@ const jobSeekerProfileSchema = new mongoose.Schema(
       unique: true,
     },
 
+    firstName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    surname: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     fullName: {
       type: String,
+      trim: true,
       default: "",
     },
 
     professionalTitle: {
       type: String,
+      trim: true,
       default: "",
     },
 
     phone: {
       type: String,
+      trim: true,
       default: "",
     },
 
     location: {
       type: String,
+      trim: true,
       default: "",
     },
 
     about: {
       type: String,
+      trim: true,
       default: "",
     },
 
@@ -51,6 +69,7 @@ const jobSeekerProfileSchema = new mongoose.Schema(
 
     portfolio: {
       type: String,
+      trim: true,
       default: "",
     },
 
@@ -59,9 +78,7 @@ const jobSeekerProfileSchema = new mongoose.Schema(
       default: "",
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model(

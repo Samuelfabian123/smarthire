@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
@@ -18,24 +19,57 @@ export default function EmployerDashboard() {
   const [editingJob, setEditingJob] = useState(null);
   const [savingJob, setSavingJob] = useState(false);
   const [jobError, setJobError] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const [loadingJobs, setLoadingJobs] = useState(true);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
+    setLoadingJobs(true);
+    setJobError("");
+    setProfileError("");
+
     try {
-      const [jobsRes, profileRes] = await Promise.all([
+      const [jobsResult, profileResult] = await Promise.allSettled([
         api.get("/jobs/mine"),
         api.get("/profile/employer"),
       ]);
 
-      setJobs(Array.isArray(jobsRes.data) ? jobsRes.data : []);
-      setCompanyProfile(profileRes.data);
+      if (jobsResult.status === "fulfilled") {
+        const result = jobsResult.value.data;
+        setJobs(Array.isArray(result) ? result : []);
+      } else {
+        console.error(
+          "Unable to load employer jobs:",
+          jobsResult.reason
+        );
+        setJobError(
+          jobsResult.reason?.response?.data?.error ||
+            "Unable to load your jobs. Please try again."
+        );
+      }
+
+      if (profileResult.status === "fulfilled") {
+        setCompanyProfile(profileResult.value.data);
+      } else {
+        console.error(
+          "Unable to load company profile:",
+          profileResult.reason
+        );
+        setProfileError(
+          profileResult.reason?.response?.data?.error ||
+            "Company information could not be loaded."
+        );
+      }
     } catch (error) {
       console.error("Unable to load employer dashboard:", error);
+      setJobError("Unable to load your dashboard. Please try again.");
+    } finally {
+      setLoadingJobs(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const companyName =
     companyProfile?.companyName || user?.name || "Your Company";
@@ -84,9 +118,13 @@ export default function EmployerDashboard() {
         skillsRequired,
       });
 
+      const updatedJob = response.data?.job || response.data;
+
       setJobs((currentJobs) =>
         currentJobs.map((job) =>
-          job._id === editingJob._id ? response.data.job : job
+          job._id === editingJob._id
+            ? { ...job, ...updatedJob }
+            : job
         )
       );
 
@@ -221,12 +259,20 @@ export default function EmployerDashboard() {
             </div>
 
             <Link
-              to="/profile/employer"
+              to="/dashboard/employer/profile"
               className="inline-flex items-center justify-center whitespace-nowrap rounded-lg bg-[#2F6F4E] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#234F38]"
             >
-              {companyProfile ? "Edit Company Profile" : "Create Company Profile"}
+              {companyProfile
+                ? "Edit Company Profile"
+                : "Create Company Profile"}
             </Link>
           </div>
+
+          {profileError && (
+            <p role="alert" className="mt-4 text-sm text-amber-700">
+              {profileError} You can still open the company profile to review it.
+            </p>
+          )}
 
           {companyProfile && (
             <div className="mt-6 border-t border-[#DCD8CC] pt-6">
@@ -256,9 +302,13 @@ export default function EmployerDashboard() {
                       Website
                     </p>
                     <a
-                      href={companyProfile.website}
+                      href={
+                        /^https?:\/\//i.test(companyProfile.website)
+                          ? companyProfile.website
+                          : `https://${companyProfile.website}`
+                      }
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="mt-1 block break-all text-sm text-[#2F6F4E] hover:underline"
                     >
                       {companyProfile.website}
@@ -289,7 +339,7 @@ export default function EmployerDashboard() {
             </p>
             <div className="mt-2 flex items-end justify-between">
               <p className="font-serif text-4xl text-[#16241E]">
-                {jobs.length}
+                {loadingJobs ? "—" : jobs.length}
               </p>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E7F0EA] text-[#2F6F4E]">
                 💼
@@ -346,7 +396,27 @@ export default function EmployerDashboard() {
             )}
           </div>
 
-          {jobs.length > 0 ? (
+          {jobError && (
+            <div
+              role="alert"
+              className="mb-5 rounded-xl border border-red-200 bg-white p-5 text-sm text-red-700"
+            >
+              <p>{jobError}</p>
+              <button
+                type="button"
+                onClick={loadData}
+                className="mt-3 font-semibold underline"
+              >
+                Retry loading dashboard
+              </button>
+            </div>
+          )}
+
+          {loadingJobs ? (
+            <div className="rounded-2xl border border-[#DCD8CC] bg-white p-10 text-center text-sm text-[#737B76]">
+              Loading your job postings...
+            </div>
+          ) : jobs.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {jobs.map((job) => (
                 <article
@@ -441,7 +511,7 @@ export default function EmployerDashboard() {
                 </article>
               ))}
             </div>
-          ) : (
+          ) : !jobError ? (
             <div className="rounded-2xl border border-[#DCD8CC] bg-white p-8 text-center sm:p-12">
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E7F0EA] text-2xl">
                 ✦
@@ -463,7 +533,7 @@ export default function EmployerDashboard() {
                 + Post your first job
               </Link>
             </div>
-          )}
+          ) : null}
         </section>
       </main>
 

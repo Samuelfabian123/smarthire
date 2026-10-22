@@ -8,3 +8,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+# Python virtual environments
+nlp-service/venv/
+nlp-service/venv312/
