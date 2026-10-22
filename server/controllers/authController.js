@@ -175,15 +175,6 @@ exports.register = async (req, res) => {
         ? `${cleanFirstName} ${cleanSurname}`.trim()
         : cleanCompanyName;
 
-    const verificationCode = crypto
-      .randomInt(100000, 1000000)
-      .toString();
-
-    const verificationCodeHash = crypto
-      .createHash("sha256")
-      .update(verificationCode)
-      .digest("hex");
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     createdUser = await User.create({
@@ -197,32 +188,18 @@ exports.register = async (req, res) => {
       companyName: role === "employer" ? cleanCompanyName : "",
       companyAddress:
         role === "employer" ? String(companyAddress || "").trim() : "",
-      isEmailVerified: false,
-      emailVerificationCodeHash: verificationCodeHash,
-      emailVerificationExpires: new Date(
-        Date.now() + VERIFICATION_EXPIRY_MS
-      ),
-      emailVerificationLastSentAt: new Date(),
+      // Email verification is disabled so users can start immediately.
+      isEmailVerified: true,
+      emailVerificationCodeHash: null,
+      emailVerificationExpires: null,
+      emailVerificationLastSentAt: null,
     });
 
-    try {
-      await sendVerificationEmail(createdUser, verificationCode);
-    } catch (emailError) {
-      // Keep the unverified account so the user can request another code.
-      console.error("REGISTRATION EMAIL ERROR:", emailError.message);
-
-      return res.status(503).json({
-        error:
-          "Your account was created, but the verification email could not be sent. Please request a new verification code.",
-        email: createdUser.email,
-        accountCreated: true,
-      });
-    }
-
     return res.status(201).json({
-      message: "Verification code sent. Check your email to continue.",
-      email: createdUser.email,
-      requiresEmailVerification: true,
+      message: "Account created successfully.",
+      token: generateToken(createdUser),
+      user: publicUser(createdUser),
+      requiresEmailVerification: false,
     });
   } catch (err) {
     console.error("REGISTRATION ERROR:", err);
@@ -413,14 +390,6 @@ exports.login = async (req, res) => {
     if (!passwordMatches) {
       return res.status(401).json({
         error: "Invalid credentials.",
-      });
-    }
-
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        error: "Please verify your email before signing in.",
-        requiresEmailVerification: true,
-        email: user.email,
       });
     }
 

@@ -83,11 +83,19 @@ export default function Register() {
 
       const response = await api.post("/auth/register", payload);
 
-      setEmail(response.data.email || normalizedEmail);
-      setStage("verify");
-      setMessage(
-        response.data.message ||
-          "Check your email for your six-digit verification code."
+      const { token, user } = response.data;
+
+      if (!token || !user) {
+        throw new Error("Account created, but sign-in details were not returned.");
+      }
+
+      login(user, token);
+
+      navigate(
+        user.role === "employer"
+          ? "/dashboard/employer"
+          : "/dashboard/jobseeker",
+        { replace: true }
       );
     } catch (err) {
       setError(
