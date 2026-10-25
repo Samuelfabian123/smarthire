@@ -73,7 +73,7 @@ function normalizeBoqqs(job) {
     externalId: String(job.id || listingUrl),
     external: true,
     source: "BOQQS",
-    sourceUrl: "https://boqqs.com",
+    sourceUrl: listingUrl,
     sourceJobUrl: listingUrl,
     applyUrl,
     title: job.title,
