@@ -52,20 +52,41 @@ export default function JobSeekerDashboard() {
     setDashboardLoading(true);
     setDashboardError("");
     try {
-      const [profileRes, resumeRes, matchRes] = await Promise.all([
+      const [profileRes, resumeRes, matchRes] = await Promise.allSettled([
         api.get("/profile/jobseeker"),
         api.get("/resumes/mine"),
         api.get("/matches/mine"),
       ]);
 
-      setProfile(profileRes.data);
-      setResumes(
-        Array.isArray(resumeRes.data) ? resumeRes.data : []
-      );
-      setMatches(
-        Array.isArray(matchRes.data) ? matchRes.data : []
-      );
-      setPhotoFailed(false);
+      const failedRequests = [];
+
+      if (profileRes.status === "fulfilled") {
+        setProfile(profileRes.value.data);
+        setPhotoFailed(false);
+      } else {
+        failedRequests.push("profile");
+        console.error("Unable to load job seeker profile:", profileRes.reason);
+      }
+
+      if (resumeRes.status === "fulfilled") {
+        setResumes(Array.isArray(resumeRes.value.data) ? resumeRes.value.data : []);
+      } else {
+        failedRequests.push("resumes");
+        console.error("Unable to load resumes:", resumeRes.reason);
+      }
+
+      if (matchRes.status === "fulfilled") {
+        setMatches(Array.isArray(matchRes.value.data) ? matchRes.value.data : []);
+      } else {
+        failedRequests.push("matches");
+        console.error("Unable to load job matches:", matchRes.reason);
+      }
+
+      if (failedRequests.length) {
+        setDashboardError(
+          `Some dashboard information could not be loaded (${failedRequests.join(", ")}). You can retry without losing the sections that loaded successfully.`
+        );
+      }
     } catch (err) {
       console.error("Dashboard loading error:", err);
       setDashboardError(
