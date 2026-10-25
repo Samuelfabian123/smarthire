@@ -122,16 +122,23 @@ async function getExternalJobs({ forceRefresh = false } = {}) {
     fetchBoqqsJobs({ remote: "remote" }),
   ]);
 
+  const feedSources = ["Himalayas", "BOQQS", "BOQQS"];
   const successfulFeeds = results.filter((result) => result.status === "fulfilled");
+  const hasFailedFeed = successfulFeeds.length !== results.length;
 
   // If every provider is unavailable, keep serving the last known listings
-  // rather than replacing them with an empty page for the full cache period.
+  // rather than replacing them with an empty page.
   if (successfulFeeds.length === 0) {
     cache.expiresAt = Date.now() + FAILURE_RETRY_MS;
     return cache.jobs;
   }
 
-  const jobs = successfulFeeds.flatMap((result) => result.value);
+  // Refresh from healthy feeds while retaining cached jobs from a provider
+  // that failed. The short retry window ensures we try the failed provider soon.
+  const jobs = results.flatMap((result, index) => {
+    if (result.status === "fulfilled") return result.value;
+    return cache.jobs.filter((job) => job.source === feedSources[index]);
+  });
 
   // Some providers can return an empty/changed payload without throwing.
   // Don't wipe a useful cache on that response; retry shortly instead.
@@ -151,7 +158,7 @@ async function getExternalJobs({ forceRefresh = false } = {}) {
 
   // Successful responses get a longer cache; an empty response is retried sooner.
   cache = {
-    expiresAt: Date.now() + (sorted.length ? CACHE_TTL_MS : FAILURE_RETRY_MS),
+    expiresAt: Date.now() + (sorted.length && !hasFailedFeed ? CACHE_TTL_MS : FAILURE_RETRY_MS),
     jobs: sorted,
   };
   return sorted;
