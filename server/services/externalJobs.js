@@ -10,6 +10,11 @@ function isFutureDate(value) {
   return Number.isFinite(time) && time > Date.now();
 }
 
+function cleanText(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/\s+/g, " ").trim();
+}
+
 function toSafeJobUrl(value) {
   if (!value) return "";
   try {
@@ -81,8 +86,14 @@ function normalizeBoqqs(job) {
     company: job.employer || "Company not specified",
     companyLogo: "",
     location: job.remote === "remote" ? `Remote · ${location}` : location,
-    description: "Open the original listing for the full job description, requirements and application instructions.",
-    skillsRequired: [],
+    description: cleanText(job.description || job.excerpt || job.summary || job.descriptionText) || "The source does not provide a full description in its feed. Open the original listing to review the role, requirements and application instructions.",
+    skillsRequired: Array.isArray(job.skillsRequired)
+      ? job.skillsRequired.filter((skill) => typeof skill === "string" && skill.trim()).slice(0, 20)
+      : Array.isArray(job.skills)
+        ? job.skills.filter((skill) => typeof skill === "string" && skill.trim()).slice(0, 20)
+        : Array.isArray(job.categories)
+          ? job.categories.filter((skill) => typeof skill === "string" && skill.trim()).slice(0, 20)
+          : [],
     employmentType: job.employmentType || "",
     seniority: "",
     salary,
