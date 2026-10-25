@@ -133,6 +133,13 @@ async function getExternalJobs({ forceRefresh = false } = {}) {
 
   const jobs = successfulFeeds.flatMap((result) => result.value);
 
+  // Some providers can return an empty/changed payload without throwing.
+  // Don't wipe a useful cache on that response; retry shortly instead.
+  if (jobs.length === 0 && cache.jobs.length > 0) {
+    cache.expiresAt = Date.now() + FAILURE_RETRY_MS;
+    return cache.jobs;
+  }
+
   const unique = new Map();
   for (const job of jobs) unique.set(job._id, job);
 
