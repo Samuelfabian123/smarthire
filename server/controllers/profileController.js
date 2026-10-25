@@ -1,4 +1,3 @@
-
 const JobSeekerProfile = require("../models/JobSeekerProfile");
 const EmployerProfile = require("../models/EmployerProfile");
 const User = require("../models/User");
@@ -6,8 +5,8 @@ const User = require("../models/User");
 const getUserId = (req) => req.user?.id || req.user?._id;
 
 const getUploadedFileUrl = (file) => {
-  if (!file) return null;
-  return file.path || (file.filename ? `/uploads/${file.filename}` : null);
+  if (!file || !file.filename) return null;
+  return `/uploads/${file.filename}`;
 };
 
 // GET /api/profile/jobseeker
@@ -24,10 +23,8 @@ const getJobSeekerProfile = async (req, res) => {
       User.findById(userId).select("name firstName surname email phone"),
     ]);
 
-    const firstName =
-      profile?.firstName || user?.firstName || "";
-    const surname =
-      profile?.surname || user?.surname || "";
+    const firstName = profile?.firstName || user?.firstName || "";
+    const surname = profile?.surname || user?.surname || "";
 
     const fullName =
       profile?.fullName ||
@@ -82,6 +79,7 @@ const updateJobSeekerProfile = async (req, res) => {
     };
 
     const photoUrl = getUploadedFileUrl(req.file);
+
     if (photoUrl) {
       profileFields.photoUrl = photoUrl;
     }
@@ -127,6 +125,7 @@ const getEmployerProfile = async (req, res) => {
     }
 
     const profile = await EmployerProfile.findOne({ user: userId });
+
     return res.json(profile || {});
   } catch (error) {
     console.error("Get employer profile error:", error);
@@ -165,6 +164,7 @@ const updateEmployerProfile = async (req, res) => {
     }
 
     const logoUrl = getUploadedFileUrl(req.file);
+
     if (logoUrl) {
       profileFields.logoUrl = logoUrl;
     }

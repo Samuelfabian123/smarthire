@@ -1,9 +1,25 @@
-
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Save, ArrowLeft, LoaderCircle } from "lucide-react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+const API_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
+
+function getImageUrl(url) {
+  if (!url) return "";
+
+  // Keep complete image URLs unchanged.
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  // Resolve relative upload paths against the backend server.
+  return `${API_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
+}
 
 const initialProfile = {
   firstName: "",
@@ -26,6 +42,7 @@ export default function JobSeekerProfile() {
   const [profile, setProfile] = useState(initialProfile);
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState("");
+  const [imageFailed, setImageFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -62,9 +79,10 @@ export default function JobSeekerProfile() {
         portfolio: data.portfolio || "",
       });
 
-      if (data.photoUrl) {
-        setPhotoPreview(data.photoUrl);
-      }
+      const savedPhoto = data.photoUrl || "";
+
+      setPhotoPreview(savedPhoto);
+      setImageFailed(false);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -109,16 +127,19 @@ export default function JobSeekerProfile() {
 
     if (!file.type.startsWith("image/")) {
       setError("Please select a valid image file.");
+      event.target.value = "";
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       setError("Your profile photo must be smaller than 5MB.");
+      event.target.value = "";
       return;
     }
 
     setPhoto(file);
     setPhotoPreview(URL.createObjectURL(file));
+    setImageFailed(false);
     setMessage("");
     setError("");
   };
@@ -161,21 +182,20 @@ export default function JobSeekerProfile() {
         formData.append("photo", photo);
       }
 
-      const response = await api.put(
-        "/profile/jobseeker",
-        formData
-      );
+      const response = await api.put("/profile/jobseeker", formData);
 
+      // Use the URL returned by the backend after a successful save.
       if (response.data?.photoUrl) {
         setPhotoPreview(response.data.photoUrl);
+        setImageFailed(false);
       }
 
       setPhoto(null);
+
       setMessage(
         response.data?.message || "Profile saved successfully."
       );
 
-      // Return to the dashboard only after the server confirms the save.
       navigate("/dashboard/jobseeker", { replace: true });
     } catch (err) {
       setError(
@@ -197,6 +217,8 @@ export default function JobSeekerProfile() {
     );
   }
 
+  const imageUrl = getImageUrl(photoPreview);
+
   return (
     <div className="min-h-screen bg-[#F8F7F2] px-4 py-8 text-[#16241E] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
@@ -213,9 +235,11 @@ export default function JobSeekerProfile() {
           <p className="mb-2 text-sm font-bold uppercase tracking-[0.18em] text-[#21845E]">
             Your professional identity
           </p>
+
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             My Profile
           </h1>
+
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
             Keep your details up to date so SmartHire can better match
             you with relevant opportunities.
@@ -228,8 +252,12 @@ export default function JobSeekerProfile() {
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#E8F4EC] text-[#176B4D]">
                 <User size={22} />
               </div>
+
               <div>
-                <h2 className="text-lg font-bold">Personal information</h2>
+                <h2 className="text-lg font-bold">
+                  Personal information
+                </h2>
+
                 <p className="text-sm text-gray-500">
                   Tell employers who you are.
                 </p>
@@ -238,11 +266,12 @@ export default function JobSeekerProfile() {
 
             <div className="mb-7 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#DCE9DF] bg-[#E8F4EC] text-2xl font-bold text-[#176B4D]">
-                {photoPreview ? (
+                {imageUrl && !imageFailed ? (
                   <img
-                    src={photoPreview}
-                    alt="Profile preview"
+                    src={imageUrl}
+                    alt="Profile photo"
                     className="h-full w-full object-cover"
+                    onError={() => setImageFailed(true)}
                   />
                 ) : (
                   (
@@ -260,6 +289,7 @@ export default function JobSeekerProfile() {
                 >
                   Upload profile photo
                 </label>
+
                 <input
                   id="profilePhoto"
                   type="file"
@@ -267,6 +297,7 @@ export default function JobSeekerProfile() {
                   onChange={handlePhotoChange}
                   className="hidden"
                 />
+
                 <p className="mt-2 text-xs text-gray-500">
                   JPG, PNG, or another image format. Maximum 5MB.
                 </p>
@@ -275,9 +306,13 @@ export default function JobSeekerProfile() {
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
-                <label htmlFor="firstName" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="firstName"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   First name *
                 </label>
+
                 <input
                   id="firstName"
                   name="firstName"
@@ -291,9 +326,13 @@ export default function JobSeekerProfile() {
               </div>
 
               <div>
-                <label htmlFor="surname" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="surname"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   Surname *
                 </label>
+
                 <input
                   id="surname"
                   name="surname"
@@ -307,9 +346,13 @@ export default function JobSeekerProfile() {
               </div>
 
               <div className="sm:col-span-2">
-                <label htmlFor="professionalTitle" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="professionalTitle"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   Professional title
                 </label>
+
                 <input
                   id="professionalTitle"
                   name="professionalTitle"
@@ -321,9 +364,13 @@ export default function JobSeekerProfile() {
               </div>
 
               <div>
-                <label htmlFor="phone" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="phone"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   Phone number
                 </label>
+
                 <input
                   id="phone"
                   name="phone"
@@ -337,9 +384,13 @@ export default function JobSeekerProfile() {
               </div>
 
               <div>
-                <label htmlFor="location" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="location"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   Location
                 </label>
+
                 <input
                   id="location"
                   name="location"
@@ -352,9 +403,13 @@ export default function JobSeekerProfile() {
               </div>
 
               <div className="sm:col-span-2">
-                <label htmlFor="about" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="about"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   About you
                 </label>
+
                 <textarea
                   id="about"
                   name="about"
@@ -369,16 +424,23 @@ export default function JobSeekerProfile() {
           </section>
 
           <section className="rounded-2xl border border-[#E6E9E2] bg-white p-5 shadow-sm sm:p-8">
-            <h2 className="mb-1 text-lg font-bold">Career information</h2>
+            <h2 className="mb-1 text-lg font-bold">
+              Career information
+            </h2>
+
             <p className="mb-6 text-sm text-gray-500">
               These details help employers understand your qualifications.
             </p>
 
             <div className="space-y-5">
               <div>
-                <label htmlFor="skills" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="skills"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   Skills
                 </label>
+
                 <textarea
                   id="skills"
                   name="skills"
@@ -388,15 +450,20 @@ export default function JobSeekerProfile() {
                   placeholder="React, Node.js, Python, MongoDB..."
                   className="w-full resize-y rounded-xl border border-gray-200 bg-white px-4 py-3 outline-none transition focus:border-[#21845E] focus:ring-2 focus:ring-[#21845E]/10"
                 />
+
                 <p className="mt-2 text-xs text-gray-500">
                   Separate skills with commas.
                 </p>
               </div>
 
               <div>
-                <label htmlFor="education" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="education"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   Education
                 </label>
+
                 <textarea
                   id="education"
                   name="education"
@@ -409,9 +476,13 @@ export default function JobSeekerProfile() {
               </div>
 
               <div>
-                <label htmlFor="experience" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="experience"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   Work experience
                 </label>
+
                 <textarea
                   id="experience"
                   name="experience"
@@ -424,9 +495,13 @@ export default function JobSeekerProfile() {
               </div>
 
               <div>
-                <label htmlFor="portfolio" className="mb-2 block text-sm font-semibold">
+                <label
+                  htmlFor="portfolio"
+                  className="mb-2 block text-sm font-semibold"
+                >
                   Portfolio or LinkedIn URL
                 </label>
+
                 <input
                   id="portfolio"
                   name="portfolio"
@@ -477,6 +552,7 @@ export default function JobSeekerProfile() {
               ) : (
                 <Save size={18} />
               )}
+
               {saving ? "Saving..." : "Save profile"}
             </button>
           </div>

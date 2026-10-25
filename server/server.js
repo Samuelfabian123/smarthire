@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -9,6 +10,7 @@ const resumeRoutes = require("./routes/resumeRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const matchRoutes = require("./routes/matchRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const agentRoutes = require("./routes/agentRoutes");
 
 const app = express();
 
@@ -36,10 +38,10 @@ const allowedOrigins = new Set([
 app.use(
   cors({
     origin(origin, callback) {
-      // Requests without Origin (for example health checks) are not browser CORS requests.
       if (!origin || allowedOrigins.has(origin)) {
         return callback(null, true);
       }
+
       return callback(new Error("Origin not allowed by CORS"));
     },
     credentials: true,
@@ -47,9 +49,15 @@ app.use(
 );
 
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"))
+);
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/resumes", resumeRoutes);
@@ -57,17 +65,23 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/matches", matchRoutes);
 app.use("/api/profile", profileRoutes);
 
-// Fallback error handler
+// SmartHire AI Career Agent
+app.use("/api/agent", agentRoutes);
+
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("Server error:", err.message);
+
   res.status(500).json({
     error: "Something went wrong",
-    details: err.message,
+    details:
+      process.env.NODE_ENV === "production"
+        ? "An unexpected server error occurred."
+        : err.message,
   });
 });
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () =>
-  console.log(`SmartHire server running on port ${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`SmartHire server running on port ${PORT}`);
+});

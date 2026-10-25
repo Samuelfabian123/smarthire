@@ -11,8 +11,9 @@ app = Flask(__name__)
 model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 
-# Standardize common alternative names for technical skills.
+# Standardize alternative skill names across multiple industries.
 SKILL_ALIASES = {
+    # TECHNOLOGY
     "js": "javascript",
     "javascript": "javascript",
     "node": "node.js",
@@ -25,6 +26,7 @@ SKILL_ALIASES = {
     "next.js": "next.js",
     "expressjs": "express",
     "express.js": "express",
+    "express": "express",
     "mongodb": "mongodb",
     "mongo db": "mongodb",
     "postgres": "postgresql",
@@ -34,7 +36,9 @@ SKILL_ALIASES = {
     "ts": "typescript",
     "typescript": "typescript",
     "html5": "html",
+    "html": "html",
     "css3": "css",
+    "css": "css",
     "ml": "machine learning",
     "machine-learning": "machine learning",
     "nlp": "natural language processing",
@@ -53,6 +57,238 @@ SKILL_ALIASES = {
     "c++": "c++",
     "c sharp": "c#",
     "c#": "c#",
+    "git": "git",
+    "github": "github",
+    "sql": "sql",
+    "mysql": "mysql",
+    "sqlite": "sqlite",
+    "redis": "redis",
+    "graphql": "graphql",
+    "power bi": "power bi",
+    "tableau": "tableau",
+    "excel": "microsoft excel",
+    "ms excel": "microsoft excel",
+    "microsoft excel": "microsoft excel",
+    "advanced excel": "microsoft excel",
+    "data analysis": "data analysis",
+    "data analytics": "data analysis",
+    "cybersecurity": "cybersecurity",
+    "cyber security": "cybersecurity",
+    "network administration": "network administration",
+    "ui ux": "ui/ux design",
+    "ui/ux": "ui/ux design",
+    "graphic design": "graphic design",
+    "content writing": "content writing",
+    "seo": "search engine optimization",
+    "search engine optimization": "search engine optimization",
+
+    # GENERAL BUSINESS AND WORKPLACE SKILLS
+    "communication": "communication",
+    "verbal communication": "communication",
+    "written communication": "communication",
+    "interpersonal skills": "interpersonal skills",
+    "teamwork": "teamwork",
+    "team work": "teamwork",
+    "problem solving": "problem solving",
+    "problem-solving": "problem solving",
+    "time management": "time management",
+    "leadership": "leadership",
+    "negotiation": "negotiation",
+    "sales": "sales",
+    "marketing": "marketing",
+    "digital marketing": "digital marketing",
+    "business development": "business development",
+    "project management": "project management",
+    "administration": "administration",
+    "administrative support": "administration",
+    "data entry": "data entry",
+    "record keeping": "record keeping",
+    "public relations": "public relations",
+    "pr": "public relations",
+    "customer service": "customer service",
+    "customer care": "customer service",
+    "customer support": "customer support",
+    "complaint resolution": "complaint resolution",
+    "call centre": "call centre operations",
+    "call center": "call centre operations",
+    "call centre operations": "call centre operations",
+    "product knowledge": "product knowledge",
+
+    # ACCOUNTING AND FINANCE
+    "accounting": "accounting",
+    "accountant": "accounting",
+    "bookkeeping": "bookkeeping",
+    "book keeping": "bookkeeping",
+    "financial reporting": "financial reporting",
+    "financial analysis": "financial analysis",
+    "budgeting": "budgeting",
+    "tax preparation": "tax preparation",
+    "tax prep": "tax preparation",
+    "taxation": "taxation",
+    "auditing": "auditing",
+    "audit": "auditing",
+    "payroll": "payroll",
+    "accounts payable": "accounts payable",
+    "accounts receivable": "accounts receivable",
+    "bank reconciliation": "bank reconciliation",
+    "financial management": "financial management",
+    "quickbooks": "quickbooks",
+    "quick books": "quickbooks",
+    "sage accounting": "sage accounting",
+    "sage": "sage accounting",
+    "invoicing": "invoicing",
+    "cash flow management": "cash flow management",
+
+    # HOSPITALITY AND HOTEL MANAGEMENT
+    "food preparation": "food preparation",
+    "food prep": "food preparation",
+    "cooking": "cooking",
+    "menu planning": "menu planning",
+    "food hygiene": "food hygiene",
+    "food safety": "food safety",
+    "baking": "baking",
+    "table service": "table service",
+    "bartending": "bartending",
+    "bar service": "bartending",
+    "housekeeping": "housekeeping",
+    "hotel reservations": "hotel reservations",
+    "reservation management": "hotel reservations",
+    "booking management": "booking management",
+    "front desk operations": "front desk operations",
+    "front desk": "front desk operations",
+    "guest relations": "guest relations",
+    "hospitality management": "hospitality management",
+    "event planning": "event planning",
+    "laundry": "laundry",
+    "hotel management": "hotel management",
+    "room service": "room service",
+    "catering": "catering",
+    "food and beverage service": "food and beverage service",
+        # ALTERNATIVE WORDING FOR HOSPITALITY
+    "hotel bookings": "hotel reservations",
+    "handling hotel bookings": "hotel reservations",
+    "managing hotel bookings": "hotel reservations",
+    "booking hotel rooms": "hotel reservations",
+    "hotel room bookings": "hotel reservations",
+    "guest enquiries": "guest relations",
+    "guest inquiries": "guest relations",
+    "managing guest enquiries": "guest relations",
+    "managing guest inquiries": "guest relations",
+    "welcoming guests": "guest relations",
+    "attending to guests": "guest relations",
+    "assisting hotel guests": "guest relations",
+
+    # ALTERNATIVE WORDING FOR COMMUNICATION
+    "communicate well": "communication",
+    "good communication skills": "communication",
+    "excellent communication skills": "communication",
+    "effective communication": "communication",
+    "communicating effectively": "communication",
+    "verbal and written communication": "communication",
+
+    # HEALTHCARE
+    "patient care": "patient care",
+    "nursing": "nursing",
+    "clinical assessment": "clinical assessment",
+    "first aid": "first aid",
+    "cpr": "cpr",
+    "bls": "basic life support",
+    "basic life support": "basic life support",
+    "vital signs monitoring": "vital signs monitoring",
+    "vitals monitoring": "vital signs monitoring",
+    "medication administration": "medication administration",
+    "wound care": "wound care",
+    "infection prevention": "infection prevention",
+    "infection control": "infection prevention",
+    "medical records": "medical records",
+    "laboratory testing": "laboratory testing",
+    "phlebotomy": "phlebotomy",
+    "pharmacy": "pharmacy",
+    "medication dispensing": "medication dispensing",
+    "patient communication": "patient communication",
+    "public health": "public health",
+    "health education": "health education",
+    "physiotherapy": "physiotherapy",
+    "physical therapy": "physiotherapy",
+    "radiography": "radiography",
+    "medical laboratory science": "medical laboratory science",
+    "patient monitoring": "patient monitoring",
+
+    # EDUCATION
+    "teaching": "teaching",
+    "lesson planning": "lesson planning",
+    "curriculum planning": "curriculum planning",
+    "classroom management": "classroom management",
+    "student assessment": "student assessment",
+    "childcare": "childcare",
+    "early childhood education": "early childhood education",
+    "special needs education": "special needs education",
+    "tutoring": "tutoring",
+    "online teaching": "online teaching",
+    "educational technology": "educational technology",
+    "classroom instruction": "teaching",
+
+    # CONSTRUCTION AND ENGINEERING
+    "civil engineering": "civil engineering",
+    "structural design": "structural design",
+    "autocad": "autocad",
+    "building design": "building design",
+    "construction planning": "construction planning",
+    "site supervision": "site supervision",
+    "project estimation": "project estimation",
+    "quantity surveying": "quantity surveying",
+    "electrical installation": "electrical installation",
+    "electrical wiring": "electrical installation",
+    "plumbing": "plumbing",
+    "carpentry": "carpentry",
+    "masonry": "masonry",
+    "welding": "welding",
+    "equipment maintenance": "equipment maintenance",
+    "workplace safety": "workplace safety",
+    "health and safety": "workplace safety",
+    "mechanical engineering": "mechanical engineering",
+    "electrical engineering": "electrical engineering",
+    "maintenance": "maintenance",
+    "hvac": "hvac",
+
+    # TRANSPORT AND LOGISTICS
+    "driving": "driving",
+    "safe driving": "defensive driving",
+    "defensive driving": "defensive driving",
+    "commercial driving": "commercial driving",
+    "route planning": "route planning",
+    "vehicle maintenance": "vehicle maintenance",
+    "fleet management": "fleet management",
+    "logistics": "logistics",
+    "supply chain": "supply chain management",
+    "supply chain management": "supply chain management",
+    "warehouse management": "warehouse management",
+    "warehousing": "warehouse management",
+    "inventory management": "inventory management",
+    "inventory control": "inventory management",
+    "dispatch operations": "dispatch operations",
+    "delivery operations": "delivery operations",
+    "forklift operation": "forklift operation",
+    "stock control": "inventory management",
+
+    # RETAIL AND SECURITY
+    "retail sales": "retail sales",
+    "merchandising": "merchandising",
+    "cash handling": "cash handling",
+    "pos": "point of sale operations",
+    "point of sale": "point of sale operations",
+    "point of sale operations": "point of sale operations",
+    "security operations": "security operations",
+    "surveillance": "surveillance",
+    "access control": "access control",
+    "risk assessment": "risk assessment",
+    "emergency response": "emergency response",
+    "quality control": "quality control",
+    "quality assurance": "quality assurance",
+    "procurement": "procurement",
+    "purchasing": "procurement",
+    "manufacturing": "manufacturing",
+    "production planning": "production planning",
 }
 
 
@@ -97,7 +333,6 @@ def skill_is_present(resume_text, skill):
         for alias, standard in SKILL_ALIASES.items()
         if standard == canonical
     ]
-
     aliases.extend([skill_normalized, canonical])
 
     for alias in set(aliases):
@@ -119,10 +354,9 @@ def skill_is_present(resume_text, skill):
 
 
 def calculate_semantic_score(resume_text, job_text):
-    """Calculate semantic similarity using a lightweight ONNX embedding model."""
-    # FastEmbed runs an ONNX model instead of loading PyTorch/Sentence Transformers.
-    # Embeddings are normalized so cosine similarity is straightforward.
+    """Calculate semantic similarity using the FastEmbed ONNX model."""
     embeddings = list(model.embed([resume_text, job_text]))
+
     score = cosine_similarity(
         embeddings[0].reshape(1, -1),
         embeddings[1].reshape(1, -1)
@@ -156,7 +390,7 @@ def calculate_tfidf_score(resume_text, job_text):
 
 
 def extract_required_skills(job_text):
-    """Extract skills from common job-description headings."""
+    """Extract skills from job-description headings or known aliases."""
     heading_pattern = (
         r"(?im)^[ \t]*"
         r"(?:required\s+skills|technical\s+skills|"
@@ -166,7 +400,6 @@ def extract_required_skills(job_text):
 
     heading_match = re.search(heading_pattern, job_text)
 
-    # Also support headings appearing after other text on a line.
     if not heading_match:
         heading_match = re.search(
             r"(?i)\b(?:required\s+skills|technical\s+skills|"
@@ -175,9 +408,6 @@ def extract_required_skills(job_text):
         )
 
     if not heading_match:
-        # Many job descriptions mention required technologies in ordinary
-        # sentences instead of using a dedicated "Skills" heading. In that
-        # case, detect known technical skills throughout the description.
         normalized_job = normalize_text(job_text)
         occurrences = []
 
@@ -195,9 +425,8 @@ def extract_required_skills(job_text):
                     SKILL_ALIASES[alias]
                 ))
 
-        # Keep the order in which skills appear and prefer longer aliases
-        # when two aliases refer to the same text.
         occurrences.sort()
+
         detected_skills = []
         seen_skills = set()
 
@@ -210,7 +439,6 @@ def extract_required_skills(job_text):
 
     skills_text = job_text[heading_match.end():]
 
-    # Stop extracting when another recognizable section begins.
     next_heading = re.search(
         r"(?im)^[ \t]*(?:"
         r"responsibilities|job\s+responsibilities|"
@@ -225,7 +453,6 @@ def extract_required_skills(job_text):
     if next_heading:
         skills_text = skills_text[:next_heading.start()]
 
-    # Support bullet lists and common separators.
     skills_text = re.sub(r"[•●▪✓]", ",", skills_text)
     skills_text = re.sub(r"(?m)^\s*[-*]\s*", "", skills_text)
 
@@ -237,10 +464,16 @@ def extract_required_skills(job_text):
     for candidate in candidates:
         skill = candidate.strip(" \t\r\n:-")
 
+        skill = re.sub(
+            r"^(?:(?:and|or)\s+)+",
+            "",
+            skill,
+            flags=re.IGNORECASE
+        ).strip()
+
         if not skill:
             continue
 
-        # Ignore long sentences that are unlikely to be individual skills.
         if len(skill) > 60 or len(skill.split()) > 7:
             continue
 
@@ -290,7 +523,6 @@ def match():
         }), 400
 
     try:
-        # 1. Calculate semantic and lexical similarity.
         semantic_score = calculate_semantic_score(
             resume_text,
             job_text
@@ -301,7 +533,6 @@ def match():
             job_text
         )
 
-        # 2. Extract and compare required skills.
         required_skills = extract_required_skills(job_text)
 
         matched_skills = [
@@ -321,13 +552,12 @@ def match():
             if canonical_skill(skill) not in matched_keys
         ]
 
-        # 3. Calculate required-skill coverage.
         skill_score = calculate_skill_score(
             resume_text,
             required_skills
         )
 
-        # 4. Calculate overall compatibility.
+        # Overall match formula:
         # TF-IDF: 20%, semantic similarity: 40%,
         # required-skill coverage: 40%.
         final_score = (

@@ -11,6 +11,7 @@ import ResetPassword from "./pages/ResetPassword";
 
 import JobSeekerDashboard from "./pages/JobSeekerDashboard";
 import JobSeekerProfile from "./pages/JobSeekerProfile.jsx";
+import CareerAgent from "./pages/CareerAgent";
 
 import EmployerDashboard from "./pages/EmployerDashboard";
 import EmployerProfile from "./pages/EmployerProfile.jsx";
@@ -75,6 +76,16 @@ export default function App() {
           element={
             <ProtectedRoute role="jobseeker">
               <JobSeekerProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* SmartHire AI Career Agent */}
+        <Route
+          path="/dashboard/jobseeker/agent"
+          element={
+            <ProtectedRoute role="jobseeker">
+              <CareerAgent />
             </ProtectedRoute>
           }
         />

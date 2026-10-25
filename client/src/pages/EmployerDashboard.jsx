@@ -1,8 +1,19 @@
-
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+const API_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
+
+function getImageUrl(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+
+  return `${API_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
+}
 
 const today = new Date().toLocaleDateString("en-NG", {
   weekday: "long",
@@ -41,6 +52,7 @@ export default function EmployerDashboard() {
           "Unable to load employer jobs:",
           jobsResult.reason
         );
+
         setJobError(
           jobsResult.reason?.response?.data?.error ||
             "Unable to load your jobs. Please try again."
@@ -54,6 +66,7 @@ export default function EmployerDashboard() {
           "Unable to load company profile:",
           profileResult.reason
         );
+
         setProfileError(
           profileResult.reason?.response?.data?.error ||
             "Company information could not be loaded."
@@ -90,6 +103,7 @@ export default function EmployerDashboard() {
 
   function closeEditJob() {
     if (savingJob) return;
+
     setEditingJob(null);
     setJobError("");
   }
@@ -131,6 +145,7 @@ export default function EmployerDashboard() {
       setEditingJob(null);
     } catch (error) {
       console.error("Failed to update job:", error);
+
       setJobError(
         error?.response?.data?.error ||
           "Failed to update job. Please try again."
@@ -203,7 +218,9 @@ export default function EmployerDashboard() {
 
                 <div className="absolute left-1/2 top-1/2 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-4 border-[#406B53] bg-[#2F6F4E] shadow-lg">
                   <span className="text-2xl">✦</span>
-                  <span className="mt-1 text-[10px] text-white">AI Match</span>
+                  <span className="mt-1 text-[10px] text-white">
+                    AI Match
+                  </span>
                 </div>
 
                 <div className="absolute right-0 top-12 flex h-20 w-20 flex-col items-center justify-center rounded-2xl border border-[#52745F] bg-[#22382C]">
@@ -228,9 +245,12 @@ export default function EmployerDashboard() {
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#DCD8CC] bg-[#E7F0EA] text-3xl sm:h-24 sm:w-24">
                 {companyProfile?.logoUrl ? (
                   <img
-                    src={companyProfile.logoUrl}
+                    src={getImageUrl(companyProfile.logoUrl)}
                     alt="Company Logo"
                     className="h-full w-full object-cover"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
                   />
                 ) : (
                   <span>🏢</span>
@@ -345,7 +365,9 @@ export default function EmployerDashboard() {
                 💼
               </div>
             </div>
-            <p className="mt-1 text-xs text-[#8A918D]">Current job postings</p>
+            <p className="mt-1 text-xs text-[#8A918D]">
+              Current job postings
+            </p>
           </div>
 
           <div className="rounded-2xl border border-[#C9DACF] bg-[#E7F0EA] p-5 sm:p-6">
@@ -353,7 +375,9 @@ export default function EmployerDashboard() {
               Matching engine
             </p>
             <div className="mt-2 flex items-end justify-between">
-              <p className="font-serif text-2xl text-[#16241E]">AI-powered</p>
+              <p className="font-serif text-2xl text-[#16241E]">
+                AI-powered
+              </p>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#2F6F4E]">
                 ✦
               </div>
@@ -373,7 +397,9 @@ export default function EmployerDashboard() {
                 ✓
               </div>
             </div>
-            <p className="mt-2 text-xs text-[#8A918D]">Post → Match → Review</p>
+            <p className="mt-2 text-xs text-[#8A918D]">
+              Post → Match → Review
+            </p>
           </div>
         </section>
 
