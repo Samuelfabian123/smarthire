@@ -6,7 +6,7 @@ let cache = { expiresAt: 0, jobs: [] };
 function isFutureDate(value) {
   if (!value) return true;
   const time = new Date(value).getTime();
-  return !Number.isFinite(time) || time > Date.now();
+  return Number.isFinite(time) && time > Date.now();
 }
 
 function toSafeJobUrl(value) {
