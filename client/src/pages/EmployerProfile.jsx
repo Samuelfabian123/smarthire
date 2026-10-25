@@ -7,7 +7,7 @@ const API_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
 
 function getImageUrl(url) {
   if (!url) return "";
-  if (/^https?:\\/\\//i.test(url)) return url;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return `${API_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
