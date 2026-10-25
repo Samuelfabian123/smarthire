@@ -6,6 +6,7 @@ const { protect, requireRole } = require("../middleware/auth");
 
 const {
   matchResumeToJob,
+  matchExternalJob,
   getRankedCandidates,
   getMyMatches,
   getCandidateDetails,
@@ -17,6 +18,8 @@ router.post(
   requireRole("jobseeker"),
   matchResumeToJob
 );
+
+router.post("/external", protect, requireRole("jobseeker"), matchExternalJob);
 
 router.get(
   "/job/:jobId/candidates",
