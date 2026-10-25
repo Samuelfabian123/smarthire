@@ -48,7 +48,9 @@ export default function BrowseJobs() {
                 </p>
               </div>
               <div className="flex w-full shrink-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
-                {scores[job._id] !== undefined ? (
+                {job.external ? (
+                  <a href={job.applyUrl || job.sourceJobUrl} rel="noreferrer" className="btn-primary text-sm py-1.5 px-3">Apply on {job.source}</a>
+                ) : scores[job._id] !== undefined ? (
                   <p className="font-serif text-2xl text-emerald">
                     {(scores[job._id] * 100).toFixed(0)}%
                   </p>
