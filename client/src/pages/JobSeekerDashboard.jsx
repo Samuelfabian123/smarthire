@@ -45,8 +45,12 @@ export default function JobSeekerDashboard() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
 
   const loadData = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError("");
     try {
       const [profileRes, resumeRes, matchRes] = await Promise.all([
         api.get("/profile/jobseeker"),
@@ -64,6 +68,12 @@ export default function JobSeekerDashboard() {
       setPhotoFailed(false);
     } catch (err) {
       console.error("Dashboard loading error:", err);
+      setDashboardError(
+        err.response?.data?.error ||
+          "Some dashboard information could not be loaded. Check your connection and try again."
+      );
+    } finally {
+      setDashboardLoading(false);
     }
   }, []);
 
@@ -125,6 +135,28 @@ export default function JobSeekerDashboard() {
             Manage your professional profile, resume, career guidance and job matches.
           </p>
         </header>
+
+        {dashboardError && (
+          <div role="alert" className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+            <p>{dashboardError}</p>
+            <button
+              type="button"
+              onClick={loadData}
+              disabled={dashboardLoading}
+              className="self-start rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold transition hover:bg-amber-100 disabled:opacity-60 sm:self-auto"
+            >
+              {dashboardLoading ? "Refreshing…" : "Try again"}
+            </button>
+          </div>
+        )}
+
+        {dashboardLoading && !profile ? (
+          <div className="mb-8 rounded-2xl border border-[#DCD8CC] bg-white p-5" role="status" aria-live="polite">
+            <div className="h-4 w-40 animate-pulse rounded bg-[#E7E5DD]" />
+            <div className="mt-3 h-3 w-64 max-w-full animate-pulse rounded bg-[#E7E5DD]" />
+            <span className="sr-only">Loading your dashboard…</span>
+          </div>
+        ) : null}
 
         {/* AI CAREER AGENT */}
         <section className="relative mb-8 overflow-hidden rounded-3xl bg-[#16241E] p-6 text-white shadow-lg sm:p-8">
