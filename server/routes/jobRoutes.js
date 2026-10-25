@@ -13,7 +13,7 @@ const {
 
 router.post("/", protect, requireRole("employer"), createJob);
 
-router.get("/", protect, getAllJobs);
+router.get("/", getAllJobs);
 
 router.get("/mine", protect, requireRole("employer"), getMyJobs);
 
