@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "SmartHire AI",
+  "short_name": "SmartHire",
+  "description": "AI-powered job matching for Nigerian talent.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F7F5EE",
+  "theme_color": "#166534",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/smarthire-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
