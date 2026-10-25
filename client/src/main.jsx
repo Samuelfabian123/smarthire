@@ -14,3 +14,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// Register the service worker so SmartHire can be installed as a PWA.
+// API requests and authenticated data are deliberately not cached.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((error) => {
+      console.error("SmartHire service worker registration failed:", error);
+    });
+  });
+}
