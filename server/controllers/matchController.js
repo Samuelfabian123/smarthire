@@ -159,6 +159,56 @@ ${requiredSkills.join(", ")}
 };
 
 // ==========================================
+ // JOB SEEKER: SCORE AN EXTERNAL JOB AGAINST CV
+ // ==========================================
+exports.matchExternalJob = async (req, res) => {
+  try {
+    const { title, description, skillsRequired } = req.body || {};
+    if (!title || !description) {
+      return res.status(400).json({ error: "Job title and description are required" });
+    }
+
+    const resume = await Resume.findOne({ user: req.user.id }).sort({ createdAt: -1 });
+    if (!resume) {
+      return res.status(400).json({ error: "Upload a resume first" });
+    }
+    if (!resume.extractedText?.trim()) {
+      return res.status(400).json({ error: "Your CV has no readable text. Upload a text-based PDF or DOCX." });
+    }
+
+    const safeSkills = Array.isArray(skillsRequired) ? skillsRequired : [];
+    const jobText = `Job Title: ${String(title).slice(0, 200)}
+Job Description:
+${String(description).slice(0, 12000)}
+Required Skills:
+${safeSkills.map((skill) => String(skill).slice(0, 100)).join(", ")}`;
+
+    const scores = await scoreMatch(resume.extractedText, jobText);
+    return res.json({
+      message: "External job match scored",
+      finalScore: scores.finalScore ?? 0,
+      matchedSkills: Array.isArray(scores.matchedSkills) ? scores.matchedSkills : [],
+      requiredSkills: Array.isArray(scores.requiredSkills) ? scores.requiredSkills : safeSkills,
+      missingSkills: Array.isArray(scores.missingSkills) ? scores.missingSkills : [],
+      skillScore: scores.skillScore ?? 0,
+      tfidfScore: scores.tfidfScore ?? 0,
+      bertScore: scores.bertScore ?? 0,
+    });
+  } catch (err) {
+    console.error("External job matching error:", err.response?.data || err.message);
+    const status = err.response?.status;
+    const unavailable = ["ECONNREFUSED", "ENOTFOUND", "ECONNABORTED", "ETIMEDOUT"].includes(err.code);
+    return res.status(status === 429 ? 429 : unavailable ? 503 : 500).json({
+      error: status === 429
+        ? "The AI matching service is temporarily busy. Please try again shortly."
+        : unavailable
+          ? "AI matching service is unavailable"
+          : "External job matching failed",
+    });
+  }
+};
+
+// ==========================================
 // EMPLOYER: GET RANKED CANDIDATES
 // ==========================================
 
