@@ -28,6 +28,23 @@ export default function BrowseJobs() {
     }
   }
 
+  async function handleExternalMatch(job) {
+    setMatchingId(job._id);
+    setError("");
+    try {
+      const { data } = await api.post("/matches/external", {
+        title: job.title,
+        description: job.description || "",
+        skillsRequired: job.skillsRequired || [],
+      });
+      setScores((prev) => ({ ...prev, [job._id]: data.finalScore }));
+    } catch (err) {
+      setError(err.response?.data?.error || "Unable to match this vacancy. Upload a CV and try again.");
+    } finally {
+      setMatchingId(null);
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-6 pt-12 pb-20">
       <h1 className="font-serif text-3xl text-ink mb-2">Discover your next opportunity</h1>
@@ -53,6 +70,13 @@ export default function BrowseJobs() {
               <div className="flex w-full shrink-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
                 {job.external ? (
                   <>
+                    {scores[job._id] !== undefined ? (
+                      <p className="font-serif text-xl text-emerald">{(Number(scores[job._id]) * 100).toFixed(0)}% AI match</p>
+                    ) : (
+                      <button onClick={() => handleExternalMatch(job)} disabled={matchingId === job._id} className="btn-secondary text-sm py-1.5 px-3">
+                        {matchingId === job._id ? "Scoring…" : "Check AI match"}
+                      </button>
+                    )}
                     <a href={job.applyUrl || job.sourceJobUrl} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm py-1.5 px-3">Apply / view job ↗</a>
                     <a href={job.sourceUrl || job.sourceJobUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-muted underline">via {job.source || "original source"}</a>
                   </>
