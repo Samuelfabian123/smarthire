@@ -1,6 +1,7 @@
 const axios = require("axios");
 
 const CACHE_TTL_MS = 15 * 60 * 1000;
+const FAILURE_RETRY_MS = 60 * 1000;
 let cache = { expiresAt: 0, jobs: [] };
 
 function isFutureDate(value) {
@@ -121,9 +122,16 @@ async function getExternalJobs({ forceRefresh = false } = {}) {
     fetchBoqqsJobs({ remote: "remote" }),
   ]);
 
-  const jobs = results
-    .filter((result) => result.status === "fulfilled")
-    .flatMap((result) => result.value);
+  const successfulFeeds = results.filter((result) => result.status === "fulfilled");
+
+  // If every provider is unavailable, keep serving the last known listings
+  // rather than replacing them with an empty page for the full cache period.
+  if (successfulFeeds.length === 0) {
+    cache.expiresAt = Date.now() + FAILURE_RETRY_MS;
+    return cache.jobs;
+  }
+
+  const jobs = successfulFeeds.flatMap((result) => result.value);
 
   const unique = new Map();
   for (const job of jobs) unique.set(job._id, job);
@@ -134,8 +142,11 @@ async function getExternalJobs({ forceRefresh = false } = {}) {
     return dateB - dateA;
   });
 
-  // Cache even an empty result briefly to avoid hammering external providers.
-  cache = { expiresAt: Date.now() + CACHE_TTL_MS, jobs: sorted };
+  // Successful responses get a longer cache; an empty response is retried sooner.
+  cache = {
+    expiresAt: Date.now() + (sorted.length ? CACHE_TTL_MS : FAILURE_RETRY_MS),
+    jobs: sorted,
+  };
   return sorted;
 }
 
