@@ -276,6 +276,36 @@ exports.getRankedCandidates = async (req, res) => {
 };
 
 // ==========================================
+// EMPLOYER: UPDATE A CANDIDATE'S SHORTLIST DECISION
+exports.updateCandidateDecision = async (req, res) => {
+  try {
+    const { jobId, candidateId } = req.params;
+    const decision = String(req.body?.decision || "");
+    if (!["reviewing", "shortlisted", "not_selected"].includes(decision)) {
+      return res.status(400).json({ error: "Choose a valid candidate decision." });
+    }
+    const job = await Job.findById(jobId).select("employer");
+    if (!job) return res.status(404).json({ error: "Job not found." });
+    if (String(job.employer) !== String(req.user.id)) {
+      return res.status(403).json({ error: "Not your job posting." });
+    }
+    const match = await Match.findOneAndUpdate(
+      { _id: candidateId, job: jobId },
+      { $set: { employerDecision: decision } },
+      { new: true, runValidators: true }
+    );
+    if (!match) return res.status(404).json({ error: "Candidate match not found for this job." });
+    return res.json({
+      message: decision === "shortlisted" ? "Candidate added to shortlist." : decision === "not_selected" ? "Candidate marked as not selected." : "Candidate returned to review.",
+      candidateId: match._id,
+      employerDecision: match.employerDecision,
+    });
+  } catch (err) {
+    console.error("Update candidate decision error:", err.message);
+    return res.status(500).json({ error: "Unable to update candidate decision." });
+  }
+};
+
 // JOB SEEKER: GET MY MATCHES
 // ==========================================
 
