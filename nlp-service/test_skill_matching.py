@@ -14,10 +14,7 @@ class _DummyEmbedding:
     def embed(self, texts):
         return []
 
-sys.modules.setdefault(
-    "fastembed",
-    types.SimpleNamespace(TextEmbedding=_DummyEmbedding),
-)
+sys.modules["fastembed"] = types.SimpleNamespace(TextEmbedding=_DummyEmbedding)
 
 from app import canonical_skill, skill_is_present, extract_required_skills
 
