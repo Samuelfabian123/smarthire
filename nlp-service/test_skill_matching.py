@@ -6,6 +6,7 @@ The FastEmbed model is stubbed so these tests do not download a model.
 import sys
 import types
 import unittest
+from unittest.mock import patch
 
 class _DummyEmbedding:
     def __init__(self, *args, **kwargs):
@@ -16,6 +17,7 @@ class _DummyEmbedding:
 
 sys.modules["fastembed"] = types.SimpleNamespace(TextEmbedding=_DummyEmbedding)
 
+import app as app_module
 from app import canonical_skill, skill_is_present, extract_required_skills
 
 
@@ -62,6 +64,42 @@ class SkillAliasTests(unittest.TestCase):
         self.assertEqual(canonical.count("react"), 1)
         self.assertEqual(canonical.count("node.js"), 1)
 
+
+
+    def test_skill_score_reports_partial_coverage(self):
+        score = app_module.calculate_skill_score(
+            "Experienced JS developer using React",
+            ["JavaScript", "React.js", "Node.js"],
+        )
+        self.assertAlmostEqual(score, 2 / 3)
+
+    def test_match_endpoint_returns_explanations_and_weighted_score(self):
+        resume_text = (
+            "Experienced JS developer using React.js to build interfaces "
+            "and collaborate on software projects."
+        )
+        job_text = (
+            "Required Skills: JavaScript, React.js, NodeJS\\n"
+            "Responsibilities: Build and maintain web features for customers."
+        )
+
+        with app_module.app.test_client() as client:
+            with patch.object(
+                app_module, "calculate_semantic_score", return_value=0.5
+            ), patch.object(
+                app_module, "calculate_tfidf_score", return_value=0.25
+            ):
+                response = client.post(
+                    "/match",
+                    json={"resumeText": resume_text, "jobText": job_text},
+                )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["matchedSkills"], ["JavaScript", "React.js"])
+        self.assertEqual(payload["missingSkills"], ["NodeJS"])
+        self.assertAlmostEqual(payload["skillScore"], 0.6667, places=4)
+        self.assertAlmostEqual(payload["finalScore"], 0.5167, places=4)
 
 if __name__ == "__main__":
     unittest.main()
