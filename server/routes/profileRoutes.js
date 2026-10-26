@@ -9,6 +9,7 @@ const {
 
 const { protect } = require("../middleware/auth");
 const profileUpload = require("../middleware/profileUpload");
+const employerProfileUpload = require("../middleware/employerProfileUpload");
 
 const router = express.Router();
 
@@ -42,7 +43,7 @@ router.get(
 router.put(
   "/employer",
   protect,
-  profileUpload.single("logo"),
+  employerProfileUpload.single("logo"),
   updateEmployerProfile
 );
 
