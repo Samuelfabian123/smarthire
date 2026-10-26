@@ -105,7 +105,24 @@ export default function JobSeekerDashboard() {
   async function handleUpload(e) {
     e.preventDefault();
 
-    if (!file) return;
+    if (!file) {
+      setMessage("Choose a PDF or DOCX CV before uploading.");
+      return;
+    }
+
+    const fileName = String(file.name || "").toLowerCase();
+    const allowedExtension = fileName.endsWith(".pdf") || fileName.endsWith(".docx");
+    if (!allowedExtension) {
+      setMessage("Please choose a PDF or DOCX file.");
+      setFile(null);
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("Your CV must be 5 MB or smaller.");
+      setFile(null);
+      return;
+    }
 
     setUploading(true);
     setMessage("");
@@ -411,8 +428,29 @@ export default function JobSeekerDashboard() {
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <input
                 type="file"
-                accept=".pdf,.docx"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => {
+                  const selected = e.target.files?.[0] || null;
+                  setMessage("");
+                  if (!selected) {
+                    setFile(null);
+                    return;
+                  }
+                  const name = String(selected.name || "").toLowerCase();
+                  if (!name.endsWith(".pdf") && !name.endsWith(".docx")) {
+                    setFile(null);
+                    setMessage("Please choose a PDF or DOCX file.");
+                    e.target.value = "";
+                    return;
+                  }
+                  if (selected.size > 5 * 1024 * 1024) {
+                    setFile(null);
+                    setMessage("Your CV must be 5 MB or smaller.");
+                    e.target.value = "";
+                    return;
+                  }
+                  setFile(selected);
+                }}
                 className="w-full text-sm text-[#737B76]"
               />
 
@@ -430,6 +468,7 @@ export default function JobSeekerDashboard() {
                 {message}
               </p>
             )}
+            <p className="mt-3 text-xs leading-5 text-[#737B76]">Accepted formats: PDF or DOCX · Maximum file size: 5 MB.</p>
           </form>
 
           <div className="mt-4 divide-y divide-[#DCD8CC] rounded-2xl border border-[#DCD8CC] bg-white">
