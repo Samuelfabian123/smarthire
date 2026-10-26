@@ -84,6 +84,7 @@ export default function CandidateDetails() {
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -125,7 +126,7 @@ export default function CandidateDetails() {
     return () => {
       active = false;
     };
-  }, [jobId, candidateId]);
+  }, [jobId, candidateId, retryCount]);
 
   async function downloadCV(resumeId, fileName) {
     try {
@@ -172,10 +173,11 @@ export default function CandidateDetails() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#F7F5EE] p-8">
-        <p className="text-center text-[#59645C]">
-          Loading candidate profile...
-        </p>
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F5EE] px-4 py-8">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#DCD8CC] bg-white px-6 py-5 shadow-sm" role="status" aria-live="polite">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#DCD8CC] border-t-[#2F6F4E]" />
+          <span className="text-sm font-medium text-[#59645C]">Loading candidate profile…</span>
+        </div>
       </main>
     );
   }
@@ -188,9 +190,19 @@ export default function CandidateDetails() {
             Candidate profile unavailable
           </h1>
 
-          <p className="text-sm text-red-600 mt-3">
+          <p className="text-sm text-red-600 mt-3" role="alert">
             {error || "No candidate information was returned."}
           </p>
+
+          {jobId && candidateId && (
+            <button
+              type="button"
+              onClick={() => setRetryCount((count) => count + 1)}
+              className="mt-5 inline-flex rounded-xl bg-[#2F6F4E] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#234F38]"
+            >
+              Try loading again
+            </button>
+          )}
 
           <Link
             to={`/matches/job/${jobId}/candidates`}
