@@ -56,8 +56,10 @@ function normalizeHimalayas(job) {
     company: job.companyName || "Company not specified",
     companyLogo: toSafeJobUrl(job.companyLogo),
     location,
-    description: description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || job.excerpt || "Open the original listing for full details.",
-    skillsRequired: Array.isArray(job.categories) ? job.categories : [],
+    description: description || "Open the original listing for full details.",
+    skillsRequired: Array.isArray(job.categories)
+      ? job.categories.map((item) => typeof item === "string" ? cleanText(item) : cleanText(item?.name || item?.label || "")).filter(Boolean).slice(0, 20)
+      : [],
     employmentType: job.employmentType || "",
     seniority: Array.isArray(job.seniority) ? job.seniority.join(", ") : job.seniority || "",
     salary: job.minSalary || job.maxSalary
