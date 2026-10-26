@@ -630,6 +630,12 @@ export default function Home() {
                             Verified
                           </span>
                         )}
+
+                        {isDemo && (
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">
+                            Sample preview
+                          </span>
+                        )}
                       </div>
 
                       <h3 className="mt-5 text-lg font-extrabold text-slate-950">
