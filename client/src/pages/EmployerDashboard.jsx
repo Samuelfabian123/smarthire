@@ -10,7 +10,7 @@ const API_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
 
 function getImageUrl(url) {
   if (!url) return "";
-  if (/^https?:\/\//i.test(url)) return url;
+  if (/^(https?:\/\/|data:image\/)/i.test(url)) return url;
 
   return `${API_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
 }
@@ -243,9 +243,9 @@ export default function EmployerDashboard() {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#DCD8CC] bg-[#E7F0EA] text-3xl sm:h-24 sm:w-24">
-                {companyProfile?.logoUrl ? (
+                {(companyProfile?.logoDataUrl || companyProfile?.logoUrl) ? (
                   <img
-                    src={getImageUrl(companyProfile.logoUrl)}
+                    src={getImageUrl(companyProfile.logoDataUrl || companyProfile.logoUrl)}
                     alt="Company Logo"
                     className="h-full w-full object-cover"
                     onError={(event) => {
