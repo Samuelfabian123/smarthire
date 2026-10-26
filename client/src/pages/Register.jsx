@@ -43,7 +43,6 @@ export default function Register() {
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
-    setMessage("");
 
     const normalizedEmail = form.email.trim().toLowerCase();
 
