@@ -53,7 +53,10 @@ export default function BrowseJobs() {
   const [matchErrors, setMatchErrors] = useState({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("search") || "";
+  });
   const [location, setLocation] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
