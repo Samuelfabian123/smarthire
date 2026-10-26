@@ -29,6 +29,7 @@ export default function EmployerProfile() {
   const [preview, setPreview] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [logoFailed, setLogoFailed] = useState(false);
@@ -39,6 +40,7 @@ export default function EmployerProfile() {
 
   async function loadProfile() {
     setLoading(true);
+    setLoadFailed(false);
     setError("");
     try {
       const res = await api.get("/profile/employer");
@@ -60,7 +62,9 @@ export default function EmployerProfile() {
           setLogoFailed(false);
         }
       }
+      setLoadFailed(false);
     } catch (err) {
+      setLoadFailed(true);
       console.error("Unable to load employer profile:", err);
       setError(err.response?.data?.error || "Could not load your company profile. You can retry or continue editing.");
     } finally {
@@ -136,6 +140,22 @@ export default function EmployerProfile() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (loadFailed) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F5EE] px-4 py-10">
+        <section className="w-full max-w-lg rounded-2xl border border-[#DCD8CC] bg-white p-6 text-center shadow-sm sm:p-8">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-xl font-bold text-amber-700">!</div>
+          <h1 className="mt-4 font-serif text-2xl text-[#16241E]">Company profile could not load</h1>
+          <p role="alert" className="mt-3 text-sm leading-6 text-[#737B76]">{error || "Your saved company details could not be retrieved. Reload them before editing to avoid overwriting existing information."}</p>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <button type="button" onClick={loadProfile} disabled={loading} className="rounded-xl bg-[#2F6F4E] px-5 py-3 text-sm font-semibold text-white hover:bg-[#234F38] disabled:opacity-60">{loading ? "Retrying…" : "Retry loading"}</button>
+            <button type="button" onClick={() => navigate("/dashboard/employer")} className="rounded-xl border border-[#DCD8CC] px-5 py-3 text-sm font-semibold text-[#16241E] hover:bg-[#F7F5EE]">Back to dashboard</button>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
