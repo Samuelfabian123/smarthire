@@ -674,7 +674,7 @@ export default function Home() {
                           </button>
                         ) : (
                           <Link
-                            to={jobId ? `/jobs/${jobId}` : "/jobs"}
+                            to={`/jobs${job?.title ? `?search=${encodeURIComponent(job.title)}` : ""}`}
                             className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:text-emerald-950"
                           >
                             View opportunity
