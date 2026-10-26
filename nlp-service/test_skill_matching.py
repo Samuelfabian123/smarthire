@@ -55,6 +55,20 @@ class SkillAliasTests(unittest.TestCase):
         self.assertTrue(skill_is_present("Handled social media management", "social media management"))
         self.assertTrue(skill_is_present("Handled content creation for short-form videos", "content creation"))
 
+    def test_cross_industry_aliases_cover_hospitality_healthcare_and_retail(self):
+        self.assertTrue(
+            skill_is_present("Managed hotel bookings and guest enquiries", "hotel reservations")
+        )
+        self.assertTrue(
+            skill_is_present("Recorded vital signs monitoring during patient care", "vitals monitoring")
+        )
+        self.assertTrue(
+            skill_is_present("Maintained inventory control and stock records", "inventory management")
+        )
+        self.assertTrue(
+            skill_is_present("Processed customer purchases using POS terminals", "point of sale operations")
+        )
+
     def test_word_boundaries_avoid_javascript_false_positive(self):
         self.assertFalse(skill_is_present("Experience with Java only", "javascript"))
 
