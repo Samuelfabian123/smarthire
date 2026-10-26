@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, CheckCircle2, Mail, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
@@ -12,11 +12,7 @@ export default function Register() {
   const [role, setRole] = useState("jobseeker");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [stage, setStage] = useState("register");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [email, setEmail] = useState("");
 
   const [form, setForm] = useState({
     firstName: "",
@@ -83,13 +79,6 @@ export default function Register() {
 
       const response = await api.post("/auth/register", payload);
 
-      if (response.data?.requiresEmailVerification) {
-        setEmail(response.data.email || normalizedEmail);
-        setStage("verify");
-        setMessage(response.data.message || "Enter the verification code sent to your email.");
-        return;
-      }
-
       const { token, user } = response.data || {};
 
       if (!token || !user) {
@@ -111,79 +100,6 @@ export default function Register() {
           "Registration failed. Please try again."
       );
 
-      if (err.response?.data?.accountCreated || err.response?.data?.requiresEmailVerification) {
-        setEmail(err.response.data.email || normalizedEmail);
-        setStage("verify");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerify(event) {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-
-    if (!/^\d{6}$/.test(verificationCode)) {
-      setError("Enter the six-digit code sent to your email.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await api.post("/auth/verify-email", {
-        email,
-        code: verificationCode,
-      });
-
-      if (!response.data.token || !response.data.user) {
-        setMessage(
-          response.data.message || "Email verified. Please log in."
-        );
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      login(response.data.user, response.data.token);
-
-      const verifiedRole = response.data.user.role;
-
-      navigate(
-        verifiedRole === "employer"
-          ? "/dashboard/employer"
-          : "/dashboard/jobseeker",
-        { replace: true }
-      );
-    } catch (err) {
-      setError(
-        err.response?.data?.error ||
-          "Verification failed. Check the code and try again."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleResend() {
-    setError("");
-    setMessage("");
-    setLoading(true);
-
-    try {
-      const response = await api.post("/auth/resend-verification", {
-        email,
-      });
-
-      setMessage(
-        response.data.message || "Request processed. Check your email."
-      );
-    } catch (err) {
-      setError(
-        err.response?.data?.error ||
-          "Could not resend the code. Please try again."
-      );
     } finally {
       setLoading(false);
     }
@@ -265,8 +181,7 @@ export default function Register() {
               </p>
             </div>
 
-            {stage === "register" ? (
-              <>
+            <>
                 <div className="mb-7">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-[#2F6F4E]">
                     Get started
@@ -494,90 +409,6 @@ export default function Register() {
                   </Link>
                 </p>
               </>
-            ) : (
-              <div className="rounded-2xl border border-[#DCD8CC] bg-white p-5 shadow-sm sm:p-8">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStage("register");
-                    setError("");
-                    setMessage("");
-                  }}
-                  className="mb-6 inline-flex items-center gap-2 text-sm text-[#737B76] hover:text-[#2F6F4E]"
-                >
-                  <ArrowLeft size={16} /> Back to registration
-                </button>
-
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E7F0EA] text-[#2F6F4E]">
-                  <Mail size={26} />
-                </div>
-
-                <h2 className="font-serif text-3xl">Verify your email</h2>
-                <p className="mt-3 text-sm leading-6 text-[#737B76]">
-                  Enter the six-digit code sent to{" "}
-                  <strong className="break-all text-[#16241E]">{email}</strong>.
-                  The code expires after 10 minutes.
-                </p>
-
-                {message && (
-                  <div className="mt-5 rounded-lg border border-[#C8DDCE] bg-[#E7F0EA] px-4 py-3 text-sm text-[#234F38]">
-                    {message}
-                  </div>
-                )}
-
-                <form onSubmit={handleVerify} className="mt-6 space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">
-                      Six-digit verification code
-                    </label>
-                    <input
-                      value={verificationCode}
-                      onChange={(event) =>
-                        setVerificationCode(
-                          event.target.value.replace(/\D/g, "").slice(0, 6)
-                        )
-                      }
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      pattern="[0-9]{6}"
-                      maxLength={6}
-                      required
-                      placeholder="000000"
-                      className={`${inputClass} text-center text-2xl tracking-[0.35em]`}
-                    />
-                  </div>
-
-                  {error && (
-                    <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {error}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading || verificationCode.length !== 6}
-                    className="w-full rounded-lg bg-[#2F6F4E] py-3.5 text-sm font-semibold text-white transition hover:bg-[#234F38] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? "Verifying..." : "Verify Email"}
-                  </button>
-                </form>
-
-                <div className="mt-5 text-center">
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={loading}
-                    className="text-sm font-semibold text-[#2F6F4E] hover:underline disabled:opacity-60"
-                  >
-                    Resend verification code
-                  </button>
-                </div>
-
-                <p className="mt-5 text-center text-xs leading-5 text-[#737B76]">
-                  Check your inbox and spam folder. Never share your verification code.
-                </p>
-              </div>
-            )}
           </div>
         </main>
       </div>

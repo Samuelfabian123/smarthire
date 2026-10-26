@@ -1,8 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BriefcaseBusiness, MapPin, Search, Sparkles, RefreshCw } from "lucide-react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+
+const JOB_CACHE_KEY = "smarthire.jobs.cache.v1";
+const JOB_CACHE_MAX_AGE = 2 * 60 * 1000;
+
+function readCachedJobs() {
+  try {
+    const cached = JSON.parse(window.sessionStorage.getItem(JOB_CACHE_KEY) || "null");
+    if (cached && Array.isArray(cached.jobs) && Date.now() - cached.savedAt < JOB_CACHE_MAX_AGE) {
+      return cached.jobs;
+    }
+  } catch {
+    // Ignore unavailable or malformed browser cache.
+  }
+  return [];
+}
 
 function companyName(job) {
   return job.company || job.employer?.companyName || job.employer?.name || "Hiring employer";
@@ -33,6 +48,12 @@ function cleanDescription(value) {
     : "";
 }
 
+function displayScore(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+  return `${Math.round(Math.max(0, Math.min(100, number <= 1 ? number * 100 : number)))}%`;
+}
+
 function postedLabel(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -51,12 +72,13 @@ function LoadingRows() {
 export default function BrowseJobs() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState(() => readCachedJobs());
+  const jobsRef = useRef(readCachedJobs());
   const [matchingId, setMatchingId] = useState(null);
   const [matchResults, setMatchResults] = useState({});
   const [matchErrors, setMatchErrors] = useState({});
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => readCachedJobs().length === 0);
   const [search, setSearch] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("search") || "";
@@ -66,11 +88,18 @@ export default function BrowseJobs() {
   const [sortBy, setSortBy] = useState("newest");
 
   const loadJobs = useCallback(async () => {
-    setLoading(true);
+    if (jobsRef.current.length === 0) setLoading(true);
     setError("");
     try {
       const { data } = await api.get("/jobs");
-      setJobs(Array.isArray(data) ? data : Array.isArray(data?.jobs) ? data.jobs : []);
+      const nextJobs = Array.isArray(data) ? data : Array.isArray(data?.jobs) ? data.jobs : [];
+      jobsRef.current = nextJobs;
+      setJobs(nextJobs);
+      try {
+        window.sessionStorage.setItem(JOB_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), jobs: nextJobs }));
+      } catch {
+        // Browsing still works if session storage is unavailable.
+      }
     } catch (err) {
       console.error("Unable to load jobs:", err);
       setError(err.response?.data?.error || "We couldn't load vacancies. Check your connection and try again.");
@@ -118,6 +147,12 @@ export default function BrowseJobs() {
           missingSkills: Array.isArray(result.missingSkills)
             ? result.missingSkills.filter((skill) => typeof skill === "string")
             : Array.isArray(match.missingSkills) ? match.missingSkills.filter((skill) => typeof skill === "string") : [],
+          requiredSkills: Array.isArray(result.requiredSkills)
+            ? result.requiredSkills.filter((skill) => typeof skill === "string")
+            : Array.isArray(match.requiredSkills) ? match.requiredSkills.filter((skill) => typeof skill === "string") : [],
+          skillScore: result.skillScore ?? match.skillScore,
+          tfidfScore: result.tfidfScore ?? match.tfidfScore,
+          bertScore: result.bertScore ?? match.bertScore,
         },
       }));
     } catch (err) {
@@ -163,6 +198,18 @@ export default function BrowseJobs() {
             return <article key={job._id} className="border-b border-[#E7E5DD] p-5 last:border-b-0 transition-colors hover:bg-[#FDFCF9] sm:p-6"><div className="flex flex-col gap-5 sm:flex-row sm:justify-between">
               <div className="min-w-0 flex-1"><div className="mb-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${job.external ? "bg-blue-50 text-blue-700" : "bg-[#E7F0EA] text-[#2F6F4E]"}`}>{job.external ? "External listing" : "SmartHire job"}</span></div><h2 className="break-words font-serif text-xl text-[#16241E] sm:text-2xl">{job.title || "Untitled vacancy"}</h2><p className="mt-2 text-sm text-[#737B76]">{companyName(job)} · {job.location || "Location not specified"}</p><div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#737B76]">{job.employmentType && <span className="rounded-full border border-[#E7E5DD] px-2.5 py-1">{job.employmentType}</span>}{job.seniority && <span className="rounded-full border border-[#E7E5DD] px-2.5 py-1">{job.seniority}</span>}{job.salary && <span className="rounded-full bg-[#E7F0EA] px-2.5 py-1 font-semibold text-[#2F6F4E]">{job.salary}</span>}{posted && <span>{posted}</span>}</div>{description && <p className="mt-4 max-w-3xl text-sm leading-6 text-[#526057]">{description.length > 240 ? `${description.slice(0, 240).trimEnd()}…` : description}</p>}{Array.isArray(job.skillsRequired) && job.skillsRequired.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{job.skillsRequired.slice(0, 5).map((skill, i) => <span key={`${skill}-${i}`} className="rounded-lg border border-[#E7E5DD] bg-[#FDFCF9] px-2.5 py-1.5 text-xs text-[#526057]">{skill}</span>)}</div>}</div>
               <div className="flex w-full shrink-0 flex-col gap-2 sm:w-44">{score !== undefined ? <div className="rounded-xl border border-[#D5E5D9] bg-[#F1F7F2] px-3 py-2.5 text-center"><p className="text-[11px] font-semibold uppercase text-[#526057]">CV compatibility</p><p className="font-serif text-2xl text-[#2F6F4E]">{Math.round(Math.max(0, Math.min(1, score)) * 100)}%</p><button type="button" onClick={() => matchJob(job)} disabled={matchingId === job._id} className="mt-1 text-xs font-semibold text-[#2F6F4E] underline disabled:opacity-50">Recheck match</button>{matchingId === job._id && <p className="mt-1 text-xs text-[#737B76]">Updating…</p>}</div> : !user ? <button type="button" onClick={() => { const returnPath = job.title ? `/jobs?search=${encodeURIComponent(job.title)}` : "/jobs"; navigate(`/login?next=${encodeURIComponent(returnPath)}`); }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2F6F4E] px-3 py-2.5 text-sm font-semibold text-[#2F6F4E] hover:bg-[#E7F0EA]"><Sparkles size={16} />Sign in to match</button> : user.role !== "jobseeker" ? <p className="rounded-xl bg-[#F1F0EA] px-3 py-2.5 text-center text-xs leading-5 text-[#526057]">Jobseeker account required for CV matching</p> : <button type="button" onClick={() => matchJob(job)} disabled={matchingId === job._id} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2F6F4E] px-3 py-2.5 text-sm font-semibold text-[#2F6F4E] hover:bg-[#E7F0EA] disabled:cursor-wait disabled:opacity-60"><Sparkles size={16} />{matchingId === job._id ? "Checking match…" : "Check AI match"}</button>}{matchErrors[job._id] && <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs leading-5 text-amber-900" role="alert"><p>{matchErrors[job._id]}</p><button type="button" onClick={() => matchJob(job)} disabled={matchingId === job._id} className="mt-1 font-semibold underline">Try matching again</button></div>}{matchResult && ((matchResult.matchedSkills?.length || 0) > 0 || (matchResult.missingSkills?.length || 0) > 0) && <div className="rounded-xl border border-[#E7E5DD] bg-white p-3 text-left">{matchResult.matchedSkills?.length > 0 && <><p className="text-[11px] font-semibold uppercase tracking-wide text-[#2F6F4E]">Skills found</p><div className="mt-2 flex flex-wrap gap-1.5">{matchResult.matchedSkills.slice(0, 6).map((skill) => <span key={`found-${skill}`} className="rounded-full bg-[#E7F0EA] px-2 py-1 text-[11px] text-[#2F6F4E]">{skill}</span>)}</div></>}{matchResult.missingSkills?.length > 0 && <><p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-amber-700">Skills to build</p><div className="mt-2 flex flex-wrap gap-1.5">{matchResult.missingSkills.slice(0, 6).map((skill) => <span key={`missing-${skill}`} className="rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-800">{skill}</span>)}</div></>}</div>}
+              {matchResult && <div className="rounded-xl border border-[#D5E5D9] bg-[#F8FBF8] p-3 text-left">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#16241E]">Why this match?</p>
+                <p className="mt-1.5 text-xs leading-5 text-[#526057]">
+                  SmartHire compares your CV with the job title, description, and stated skills. It found {matchResult.matchedSkills?.length || 0} matching skill{(matchResult.matchedSkills?.length || 0) === 1 ? "" : "s"}{matchResult.requiredSkills?.length ? ` out of ${matchResult.requiredSkills.length} identified requirement(s)` : ""}.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {matchResult.skillScore !== undefined && <div className="rounded-lg bg-white p-2"><p className="text-[10px] uppercase text-[#737B76]">Skills overlap</p><p className="mt-1 text-sm font-semibold text-[#2F6F4E]">{displayScore(matchResult.skillScore)}</p></div>}
+                  {matchResult.tfidfScore !== undefined && <div className="rounded-lg bg-white p-2"><p className="text-[10px] uppercase text-[#737B76]">Keyword similarity</p><p className="mt-1 text-sm font-semibold text-[#2F6F4E]">{displayScore(matchResult.tfidfScore)}</p></div>}
+                  {matchResult.bertScore !== undefined && <div className="rounded-lg bg-white p-2"><p className="text-[10px] uppercase text-[#737B76]">Semantic similarity</p><p className="mt-1 text-sm font-semibold text-[#2F6F4E]">{displayScore(matchResult.bertScore)}</p></div>}
+                </div>
+                <p className="mt-2 text-[10px] leading-4 text-[#737B76]">These scores are decision-support estimates, not a guarantee of job suitability.</p>
+              </div>}
               {job.external ? applyUrl ? <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-[#2F6F4E] px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-[#234F38]">View / apply ↗</a> : <span className="rounded-xl bg-[#F1F0EA] px-3 py-2.5 text-center text-xs text-[#737B76]">Application link unavailable</span> : <span className="rounded-xl bg-[#F1F0EA] px-3 py-2.5 text-center text-xs text-[#526057]">Apply through SmartHire</span>}{job.external && sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-center text-xs text-[#737B76] underline underline-offset-4 hover:text-[#2F6F4E]">via {job.source || "original listing"}</a>}</div>
             </div></article>;
           }) : <div className="px-6 py-14 text-center"><BriefcaseBusiness size={28} className="mx-auto text-[#2F6F4E]" /><h2 className="mt-4 font-serif text-xl text-[#16241E]">{error ? "Vacancies are temporarily unavailable" : jobs.length ? "No jobs match those filters" : "No vacancies available right now"}</h2><p className="mt-2 text-sm leading-6 text-[#737B76]">{error ? "We couldn't retrieve the latest listings. Use the retry option above or try again below." : jobs.length ? "Try another search or clear your filters to see all vacancies." : "Please check back shortly."}</p><button type="button" onClick={jobs.length ? () => { setSearch(""); setLocation(""); setSourceFilter("all"); } : loadJobs} className="mt-5 rounded-xl bg-[#2F6F4E] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#234F38]">{error ? "Try again" : jobs.length ? "Clear filters" : "Refresh vacancies"}</button></div>}
