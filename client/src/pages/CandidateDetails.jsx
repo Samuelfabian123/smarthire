@@ -3,6 +3,15 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../api/axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
+
+function getImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
 function formatPercent(value) {
   if (value === null || value === undefined || value === "") {
     return "—";
@@ -74,6 +83,7 @@ export default function CandidateDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -201,6 +211,7 @@ export default function CandidateDetails() {
   const name = profile.fullName || user.name || "Applicant";
   const email = user.email || profile.email || "";
   const phone = profile.phone || user.phone || "";
+  const photoUrl = getImageUrl(profile.photoUrl);
 
   const skills = Array.isArray(profile.skills)
     ? profile.skills
@@ -236,11 +247,12 @@ export default function CandidateDetails() {
         <section className="bg-white border border-[#DCD8CC] rounded-2xl p-6 sm:p-8 mb-6">
           <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
             <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0 bg-[#EAF2EB] border border-[#DCD8CC] flex items-center justify-center text-3xl font-semibold text-[#2F6F4E]">
-              {profile.photoUrl ? (
+              {photoUrl && !photoFailed ? (
                 <img
-                  src={profile.photoUrl}
-                  alt={name}
+                  src={photoUrl}
+                  alt={`${name}'s profile`}
                   className="w-full h-full object-cover"
+                  onError={() => setPhotoFailed(true)}
                 />
               ) : (
                 name
