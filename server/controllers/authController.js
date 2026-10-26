@@ -2,7 +2,44 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 const User = require("../models/User");
+
+const mailer = nodemailer.createTransport({
+  host: process.env.MAIL_HOST || "smtp.gmail.com",
+  port: Number(process.env.MAIL_PORT || 587),
+  secure: Number(process.env.MAIL_PORT || 587) === 465,
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+  },
+});
+
+async function sendSmartHireEmail({ to, subject, html }) {
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+    throw new Error("Email delivery is not configured. Check MAIL_USER and MAIL_PASS.");
+  }
+  return mailer.sendMail({
+    from: `SmartHire <${process.env.MAIL_USER}>`,
+    to,
+    subject,
+    html,
+  });
+}
+
+function escapeHtml(value = "") {
+  return String(value).replace(/[&<>"']/g, (character) => {
+    const replacements = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return replacements[character];
+  });
+}
+
 
 function generateToken(user) {
   if (!process.env.JWT_SECRET) {
