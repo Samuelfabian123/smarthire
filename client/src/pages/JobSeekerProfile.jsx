@@ -44,6 +44,7 @@ export default function JobSeekerProfile() {
   const [photoPreview, setPhotoPreview] = useState("");
   const [imageFailed, setImageFailed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -51,6 +52,7 @@ export default function JobSeekerProfile() {
   const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadFailed(false);
       setError("");
 
       const response = await api.get("/profile/jobseeker");
@@ -83,7 +85,9 @@ export default function JobSeekerProfile() {
 
       setPhotoPreview(savedPhoto);
       setImageFailed(false);
+      setLoadFailed(false);
     } catch (err) {
+      setLoadFailed(true);
       setError(
         err.response?.data?.message ||
           err.response?.data?.error ||
@@ -213,6 +217,39 @@ export default function JobSeekerProfile() {
       <div className="flex min-h-screen items-center justify-center bg-[#F8F7F2] text-[#176B4D]">
         <LoaderCircle className="mr-3 animate-spin" size={24} />
         Loading your profile...
+      </div>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F7F2] px-4 py-10 text-[#16241E]">
+        <section className="w-full max-w-lg rounded-2xl border border-[#E6E9E2] bg-white p-6 text-center shadow-sm sm:p-8">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+            !
+          </div>
+          <h1 className="text-xl font-bold">We couldn’t load your profile</h1>
+          <p role="alert" className="mt-2 text-sm leading-6 text-gray-600">
+            {error || "Your saved details could not be retrieved. Try again before making changes."}
+          </p>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={loadProfile}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#176B4D] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0E4934]"
+            >
+              <LoaderCircle size={17} />
+              Retry loading
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/jobseeker")}
+              className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              Back to dashboard
+            </button>
+          </div>
+        </section>
       </div>
     );
   }
