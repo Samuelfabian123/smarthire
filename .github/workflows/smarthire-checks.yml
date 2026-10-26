@@ -42,3 +42,8 @@ jobs:
           python-version: "3.11"
       - name: Compile Python files
         run: python -m compileall -q nlp-service
+      - name: Install skill-test dependencies
+        run: python -m pip install flask scikit-learn
+      - name: Run skill-matching regression tests
+        working-directory: nlp-service
+        run: python -m unittest -v test_skill_matching.py
