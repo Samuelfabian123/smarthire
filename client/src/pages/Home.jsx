@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -182,42 +182,32 @@ export default function Home() {
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [jobLoadFailed, setJobLoadFailed] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  const loadJobs = useCallback(async () => {
+    setLoadingJobs(true);
 
-    async function loadJobs() {
-      try {
-        const response = await api.get("/jobs");
-
-        if (!active) return;
-
-        const data = response.data;
-        const receivedJobs = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.jobs)
+    try {
+      const response = await api.get("/jobs");
+      const data = response.data;
+      const receivedJobs = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.jobs)
           ? data.jobs
           : [];
 
-        setJobs(receivedJobs);
-        setJobLoadFailed(false);
-      } catch (error) {
-        console.error("Failed to load jobs:", error);
-
-        if (active) {
-          setJobs([]);
-          setJobLoadFailed(true);
-        }
-      } finally {
-        if (active) setLoadingJobs(false);
-      }
+      setJobs(receivedJobs);
+      setJobLoadFailed(false);
+    } catch (error) {
+      console.error("Failed to load jobs:", error);
+      setJobs([]);
+      setJobLoadFailed(true);
+    } finally {
+      setLoadingJobs(false);
     }
-
-    loadJobs();
-
-    return () => {
-      active = false;
-    };
   }, []);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
 
   const displayJobs = useMemo(
     () => (jobs.length ? jobs : demoJobs),
@@ -600,10 +590,20 @@ export default function Home() {
           ) : (
             <>
               {jobLoadFailed && (
-                <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                  We could not load live listings right now. The cards below
-                  are illustrative previews, not verified vacancies.
-                </p>
+                <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+                  <p>
+                    We could not load live listings right now. The cards below
+                    are illustrative previews, not verified vacancies.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={loadJobs}
+                    disabled={loadingJobs}
+                    className="shrink-0 rounded-lg border border-amber-300 bg-white px-4 py-2 font-bold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
+                  >
+                    {loadingJobs ? "Checking listings…" : "Retry live listings"}
+                  </button>
+                </div>
               )}
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
