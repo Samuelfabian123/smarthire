@@ -10,6 +10,7 @@ const {
   getRankedCandidates,
   getMyMatches,
   getCandidateDetails,
+  updateCandidateDecision,
 } = require("../controllers/matchController");
 
 router.post(
@@ -26,6 +27,13 @@ router.get(
   protect,
   requireRole("employer"),
   getRankedCandidates
+);
+
+router.patch(
+  "/job/:jobId/candidates/:candidateId/decision",
+  protect,
+  requireRole("employer"),
+  updateCandidateDecision
 );
 
 router.get(
