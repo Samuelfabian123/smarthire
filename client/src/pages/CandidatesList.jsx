@@ -366,14 +366,32 @@ export default function CandidatesList() {
                             <span className="text-ink font-medium">
                               Email:
                             </span>{" "}
-                            {user?.email || "No email available"}
+                            {user?.email ? (
+                              <a
+                                href={`mailto:${user.email}`}
+                                className="text-[#2F6F4E] underline underline-offset-2 hover:text-[#234F38]"
+                              >
+                                {user.email}
+                              </a>
+                            ) : (
+                              "No email available"
+                            )}
                           </p>
 
                           <p className="text-sm text-muted">
                             <span className="text-ink font-medium">
                               Phone:
                             </span>{" "}
-                            {phone || "Not provided"}
+                            {phone ? (
+                              <a
+                                href={`tel:${phone.replace(/[^+\\d]/g, "")}`}
+                                className="text-[#2F6F4E] underline underline-offset-2 hover:text-[#234F38]"
+                              >
+                                {phone}
+                              </a>
+                            ) : (
+                              "Not provided"
+                            )}
                           </p>
 
                           {profile?.location && (
