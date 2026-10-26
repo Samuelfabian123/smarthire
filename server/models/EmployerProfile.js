@@ -53,6 +53,12 @@ const employerProfileSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // Base64 data URL is stored in MongoDB so the logo survives Render deploys.
+    logoDataUrl: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
