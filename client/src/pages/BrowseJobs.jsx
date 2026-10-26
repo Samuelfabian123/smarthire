@@ -51,7 +51,7 @@ function cleanDescription(value) {
 function displayScore(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "—";
-  return `${Math.round(Math.max(0, Math.min(100, number <= 1 ? number * 100 : number))}%`;
+  return `${Math.round(Math.max(0, Math.min(100, number <= 1 ? number * 100 : number)))}%`;
 }
 
 function postedLabel(value) {
