@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
+
+function getImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
 export default function EmployerProfile() {
   const navigate = useNavigate();
 
@@ -19,13 +28,25 @@ export default function EmployerProfile() {
   const [logo, setLogo] = useState(null);
   const [preview, setPreview] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
     loadProfile();
   }, []);
 
+  useEffect(() => {
+    if (!preview.startsWith("blob:")) return undefined;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
+
   async function loadProfile() {
+    setLoading(true);
+    setLoadFailed(false);
+    setError("");
     try {
       const res = await api.get("/profile/employer");
 
@@ -43,10 +64,16 @@ export default function EmployerProfile() {
 
         if (res.data.logoUrl) {
           setPreview(res.data.logoUrl);
+          setLogoFailed(false);
         }
       }
+      setLoadFailed(false);
     } catch (err) {
-      console.log("Employer profile not found yet.");
+      setLoadFailed(true);
+      console.error("Unable to load employer profile:", err);
+      setError(err.response?.data?.error || "Could not load your company profile. You can retry or continue editing.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -62,8 +89,21 @@ export default function EmployerProfile() {
 
     if (!selectedFile) return;
 
+    if (!selectedFile.type.startsWith("image/")) {
+      setError("Please choose a valid image file.");
+      e.target.value = "";
+      return;
+    }
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      setError("Your company logo must be smaller than 5MB.");
+      e.target.value = "";
+      return;
+    }
     setLogo(selectedFile);
     setPreview(URL.createObjectURL(selectedFile));
+    setLogoFailed(false);
+    setError("");
+    setMessage("");
   }
 
   async function handleSubmit(e) {
@@ -71,6 +111,7 @@ export default function EmployerProfile() {
 
     setSaving(true);
     setMessage("");
+    setError("");
 
     try {
       const formData = new FormData();
@@ -83,27 +124,54 @@ export default function EmployerProfile() {
         formData.append("logo", logo);
       }
 
-      await api.put("/profile/employer", formData, {
+      const response = await api.put("/profile/employer", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
-      setMessage("Company profile saved successfully.");
+      setMessage(response.data?.message || "Company profile saved successfully.");
 
-      // Return to employer dashboard immediately
+      // Return to employer dashboard after a successful save
       navigate("/dashboard/employer");
 
     } catch (err) {
       console.error("Save employer profile error:", err);
 
-      setMessage(
+      setError(
         err.response?.data?.error ||
-          "Unable to save company profile."
+          "Unable to save company profile. Please try again."
       );
     } finally {
       setSaving(false);
     }
+  }
+
+  if (loading && !loadFailed) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F5EE] px-4 text-[#16241E]">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#DCD8CC] bg-white px-6 py-5 shadow-sm" role="status" aria-live="polite">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#DCD8CC] border-t-[#2F6F4E]" />
+          <span className="text-sm font-medium">Loading your company profile…</span>
+        </div>
+      </main>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F5EE] px-4 py-10">
+        <section className="w-full max-w-lg rounded-2xl border border-[#DCD8CC] bg-white p-6 text-center shadow-sm sm:p-8">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-xl font-bold text-amber-700">!</div>
+          <h1 className="mt-4 font-serif text-2xl text-[#16241E]">Company profile could not load</h1>
+          <p role="alert" className="mt-3 text-sm leading-6 text-[#737B76]">{error || "Your saved company details could not be retrieved. Reload them before editing to avoid overwriting existing information."}</p>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <button type="button" onClick={loadProfile} disabled={loading} className="rounded-xl bg-[#2F6F4E] px-5 py-3 text-sm font-semibold text-white hover:bg-[#234F38] disabled:opacity-60">{loading ? "Retrying…" : "Retry loading"}</button>
+            <button type="button" onClick={() => navigate("/dashboard/employer")} className="rounded-xl border border-[#DCD8CC] px-5 py-3 text-sm font-semibold text-[#16241E] hover:bg-[#F7F5EE]">Back to dashboard</button>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -126,6 +194,9 @@ export default function EmployerProfile() {
           </p>
         </div>
 
+        {loading && <div className="mb-5 rounded-xl border border-[#DCD8CC] bg-white p-4 text-sm text-[#526057]" role="status">Loading company profile…</div>}
+        {error && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="alert"><span>{error}</span><button type="button" onClick={loadProfile} disabled={loading} className="rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold disabled:opacity-50">{loading ? "Retrying…" : "Retry"}</button></div>}
+
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* COMPANY LOGO */}
@@ -139,11 +210,12 @@ export default function EmployerProfile() {
 
               <div className="w-28 h-28 rounded-2xl overflow-hidden bg-[#E7F0EA] border border-[#DCD8CC] flex items-center justify-center">
 
-                {preview ? (
+                {preview && !logoFailed ? (
                   <img
-                    src={preview}
+                    src={getImageUrl(preview)}
                     alt="Company Logo"
                     className="w-full h-full object-cover"
+                    onError={() => setLogoFailed(true)}
                   />
                 ) : (
                   <span className="text-4xl">
@@ -318,7 +390,7 @@ export default function EmployerProfile() {
 
           {/* MESSAGE */}
           {message && (
-            <div className="bg-white border border-[#DCD8CC] rounded-xl p-4 text-sm text-[#47725A]">
+            <div role="status" className="bg-white border border-[#DCD8CC] rounded-xl p-4 text-sm text-[#47725A]">
               {message}
             </div>
           )}
@@ -327,7 +399,7 @@ export default function EmployerProfile() {
           {/* SAVE */}
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || loading}
             className="w-full bg-[#2F6F4E] text-white py-3.5 rounded-lg text-sm font-medium hover:bg-[#234F38] transition-colors disabled:opacity-60"
           >
             {saving

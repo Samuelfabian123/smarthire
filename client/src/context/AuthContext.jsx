@@ -4,8 +4,29 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const stored = localStorage.getItem("user");
+      const token = localStorage.getItem("token");
+      if (!stored || !token) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        return null;
+      }
+
+      const parsed = JSON.parse(stored);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      // Recover gracefully if browser storage contains invalid JSON.
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      return null;
+    }
   });
 
   function login(userData, token) {

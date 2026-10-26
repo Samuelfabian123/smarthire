@@ -1,12 +1,39 @@
 const axios = require("axios");
 
 const CACHE_TTL_MS = 15 * 60 * 1000;
+const FAILURE_RETRY_MS = 60 * 1000;
 let cache = { expiresAt: 0, jobs: [] };
 
+function safePostedDate(value) {
+  if (value == null || value === "") return null;
+
+  const looksNumeric = typeof value === "number" || /^\d{10,13}$/.test(String(value));
+  const numeric = Number(value);
+  // Ten-digit Unix timestamps are seconds; thirteen-digit timestamps are milliseconds.
+  // Do not force units based on the provider, because feeds may change formats.
+  const date = new Date(looksNumeric ? (Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric) : value);
+
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
 function isFutureDate(value) {
-  if (!value) return true;
-  const time = new Date(value).getTime();
+  if (value == null || value === "") return true;
+
+  const textValue = String(value).trim();
+  const isNumericTimestamp =
+    typeof value === "number" || /^\d{10,13}$/.test(textValue);
+  const numeric = Number(value);
+  const time = isNumericTimestamp
+    ? (Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric)
+    : new Date(value).getTime();
+
+  // If a provider sends an invalid expiry value, don't show it as a verified active vacancy.
   return Number.isFinite(time) && time > Date.now();
+}
+
+function cleanText(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/\s+/g, " ").trim();
 }
 
 function toSafeJobUrl(value) {
@@ -21,7 +48,7 @@ function toSafeJobUrl(value) {
 
 function normalizeHimalayas(job) {
   const applyUrl = toSafeJobUrl(job.applicationLink);
-  if (!job.title || !applyUrl || !isFutureDate(job.expiryDate ? Number(job.expiryDate) * 1000 : null)) {
+  if (!job.title || !applyUrl || !isFutureDate(job.expiryDate)) {
     return null;
   }
 
@@ -29,7 +56,7 @@ function normalizeHimalayas(job) {
     ? job.locationRestrictions.map((item) => item?.name).filter(Boolean)
     : [];
   const location = restrictions.length ? restrictions.join(", ") : "Remote · location restrictions may apply";
-  const description = job.description || job.excerpt || "";
+  const description = cleanText(job.description || job.excerpt || "");
 
   return {
     _id: `external:himalayas:${job.guid || applyUrl}`,
@@ -43,14 +70,16 @@ function normalizeHimalayas(job) {
     company: job.companyName || "Company not specified",
     companyLogo: toSafeJobUrl(job.companyLogo),
     location,
-    description: description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || job.excerpt || "Open the original listing for full details.",
-    skillsRequired: Array.isArray(job.categories) ? job.categories : [],
+    description: description || "Open the original listing for full details.",
+    skillsRequired: Array.isArray(job.categories)
+      ? job.categories.map((item) => typeof item === "string" ? cleanText(item) : cleanText(item?.name || item?.label || "")).filter(Boolean).slice(0, 20)
+      : [],
     employmentType: job.employmentType || "",
     seniority: Array.isArray(job.seniority) ? job.seniority.join(", ") : job.seniority || "",
     salary: job.minSalary || job.maxSalary
       ? [job.minSalary, job.maxSalary].filter((value) => value != null).join("–") + ` ${job.currency || ""} / ${job.salaryPeriod || "annual"}`
       : "",
-    postedAt: job.pubDate ? new Date(Number(job.pubDate) * 1000).toISOString() : null,
+    postedAt: safePostedDate(job.pubDate),
     isRemote: true,
   };
 }
@@ -80,12 +109,18 @@ function normalizeBoqqs(job) {
     company: job.employer || "Company not specified",
     companyLogo: "",
     location: job.remote === "remote" ? `Remote · ${location}` : location,
-    description: "Open the original listing for the full job description, requirements and application instructions.",
-    skillsRequired: [],
+    description: cleanText(job.description || job.excerpt || job.summary || job.descriptionText) || "The source does not provide a full description in its feed. Open the original listing to review the role, requirements and application instructions.",
+    skillsRequired: Array.isArray(job.skillsRequired)
+      ? job.skillsRequired.filter((skill) => typeof skill === "string" && skill.trim()).slice(0, 20)
+      : Array.isArray(job.skills)
+        ? job.skills.filter((skill) => typeof skill === "string" && skill.trim()).slice(0, 20)
+        : Array.isArray(job.categories)
+          ? job.categories.filter((skill) => typeof skill === "string" && skill.trim()).slice(0, 20)
+          : [],
     employmentType: job.employmentType || "",
     seniority: "",
     salary,
-    postedAt: job.postedAt || null,
+    postedAt: safePostedDate(job.postedAt),
     isRemote: job.remote === "remote",
   };
 }
@@ -121,9 +156,30 @@ async function getExternalJobs({ forceRefresh = false } = {}) {
     fetchBoqqsJobs({ remote: "remote" }),
   ]);
 
-  const jobs = results
-    .filter((result) => result.status === "fulfilled")
-    .flatMap((result) => result.value);
+  const feedSources = ["Himalayas", "BOQQS", "BOQQS"];
+  const successfulFeeds = results.filter((result) => result.status === "fulfilled");
+  const hasFailedFeed = successfulFeeds.length !== results.length;
+
+  // If every provider is unavailable, keep serving the last known listings
+  // rather than replacing them with an empty page.
+  if (successfulFeeds.length === 0) {
+    cache.expiresAt = Date.now() + FAILURE_RETRY_MS;
+    return cache.jobs;
+  }
+
+  // Refresh from healthy feeds while retaining cached jobs from a provider
+  // that failed. The short retry window ensures we try the failed provider soon.
+  const jobs = results.flatMap((result, index) => {
+    if (result.status === "fulfilled") return result.value;
+    return cache.jobs.filter((job) => job.source === feedSources[index]);
+  });
+
+  // Some providers can return an empty/changed payload without throwing.
+  // Don't wipe a useful cache on that response; retry shortly instead.
+  if (jobs.length === 0 && cache.jobs.length > 0) {
+    cache.expiresAt = Date.now() + FAILURE_RETRY_MS;
+    return cache.jobs;
+  }
 
   const unique = new Map();
   for (const job of jobs) unique.set(job._id, job);
@@ -134,8 +190,11 @@ async function getExternalJobs({ forceRefresh = false } = {}) {
     return dateB - dateA;
   });
 
-  // Cache even an empty result briefly to avoid hammering external providers.
-  cache = { expiresAt: Date.now() + CACHE_TTL_MS, jobs: sorted };
+  // Successful responses get a longer cache; an empty response is retried sooner.
+  cache = {
+    expiresAt: Date.now() + (sorted.length && !hasFailedFeed ? CACHE_TTL_MS : FAILURE_RETRY_MS),
+    jobs: sorted,
+  };
   return sorted;
 }
 

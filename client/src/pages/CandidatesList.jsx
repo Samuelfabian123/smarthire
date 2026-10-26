@@ -3,6 +3,15 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../api/axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
+
+function getImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
 function formatPercent(value) {
   if (value === null || value === undefined || value === "") return "—";
 
@@ -41,6 +50,7 @@ function getInitials(name) {
 
 function CandidateAvatar({ name, photoUrl }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = getImageUrl(photoUrl);
 
   useEffect(() => {
     setImageFailed(false);
@@ -48,9 +58,9 @@ function CandidateAvatar({ name, photoUrl }) {
 
   return (
     <div className="w-16 h-16 shrink-0 overflow-hidden rounded-2xl border border-[#DCD8CC] bg-[#EAF2EB] text-[#2F6F4E] flex items-center justify-center font-semibold text-lg">
-      {photoUrl && !imageFailed ? (
+      {imageUrl && !imageFailed ? (
         <img
-          src={photoUrl}
+          src={imageUrl}
           alt={`${name}'s profile`}
           className="w-full h-full object-cover"
           onError={() => setImageFailed(true)}
@@ -356,14 +366,32 @@ export default function CandidatesList() {
                             <span className="text-ink font-medium">
                               Email:
                             </span>{" "}
-                            {user?.email || "No email available"}
+                            {user?.email ? (
+                              <a
+                                href={`mailto:${user.email}`}
+                                className="text-[#2F6F4E] underline underline-offset-2 hover:text-[#234F38]"
+                              >
+                                {user.email}
+                              </a>
+                            ) : (
+                              "No email available"
+                            )}
                           </p>
 
                           <p className="text-sm text-muted">
                             <span className="text-ink font-medium">
                               Phone:
                             </span>{" "}
-                            {phone || "Not provided"}
+                            {phone ? (
+                              <a
+                                href={`tel:${phone.replace(/[^+\d]/g, "")}`}
+                                className="text-[#2F6F4E] underline underline-offset-2 hover:text-[#234F38]"
+                              >
+                                {phone}
+                              </a>
+                            ) : (
+                              "Not provided"
+                            )}
                           </p>
 
                           {profile?.location && (

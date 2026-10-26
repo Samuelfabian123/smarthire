@@ -165,6 +165,14 @@ exports.register = async (req, res) => {
     const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
+      if (!existingUser.isEmailVerified) {
+        return res.status(409).json({
+          error: "This email already has a pending registration. Enter the verification code or request a new one.",
+          requiresEmailVerification: true,
+          email: normalizedEmail,
+        });
+      }
+
       return res.status(409).json({
         error: "Email already registered. Please log in or use another email.",
       });
@@ -177,6 +185,8 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const verificationCode = crypto.randomInt(100000, 1000000).toString();
+
     createdUser = await User.create({
       name: finalName,
       firstName: role === "jobseeker" ? cleanFirstName : "",
@@ -188,18 +198,30 @@ exports.register = async (req, res) => {
       companyName: role === "employer" ? cleanCompanyName : "",
       companyAddress:
         role === "employer" ? String(companyAddress || "").trim() : "",
-      // Email verification is disabled so users can start immediately.
-      isEmailVerified: true,
-      emailVerificationCodeHash: null,
-      emailVerificationExpires: null,
-      emailVerificationLastSentAt: null,
+      isEmailVerified: false,
+      emailVerificationCodeHash: crypto
+        .createHash("sha256")
+        .update(verificationCode)
+        .digest("hex"),
+      emailVerificationExpires: new Date(Date.now() + VERIFICATION_EXPIRY_MS),
+      emailVerificationLastSentAt: new Date(),
     });
 
+    try {
+      await sendVerificationEmail(createdUser, verificationCode);
+    } catch (emailError) {
+      console.error("REGISTRATION VERIFICATION EMAIL ERROR:", emailError.message);
+      await User.deleteOne({ _id: createdUser._id });
+      createdUser = null;
+      return res.status(503).json({
+        error: "We could not send your verification email. Please check your email address and try again shortly.",
+      });
+    }
+
     return res.status(201).json({
-      message: "Account created successfully.",
-      token: generateToken(createdUser),
-      user: publicUser(createdUser),
-      requiresEmailVerification: false,
+      message: "We sent a six-digit verification code to your email.",
+      email: normalizedEmail,
+      requiresEmailVerification: true,
     });
   } catch (err) {
     console.error("REGISTRATION ERROR:", err);
@@ -393,6 +415,14 @@ exports.login = async (req, res) => {
       });
     }
 
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        error: "Please verify your email before signing in.",
+        requiresEmailVerification: true,
+        email: user.email,
+      });
+    }
+
     const token = generateToken(user);
 
     return res.status(200).json({
@@ -437,7 +467,7 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
 
     const clientUrl =
-      process.env.CLIENT_URL || "http://localhost:5174";
+      process.env.CLIENT_URL || "http://localhost:5173";
 
     const resetLink = `${clientUrl}/reset-password/${resetToken}`;
 

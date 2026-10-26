@@ -44,26 +44,58 @@ export default function JobSeekerDashboard() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageError, setMessageError] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
 
   const loadData = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError("");
     try {
-      const [profileRes, resumeRes, matchRes] = await Promise.all([
+      const [profileRes, resumeRes, matchRes] = await Promise.allSettled([
         api.get("/profile/jobseeker"),
         api.get("/resumes/mine"),
         api.get("/matches/mine"),
       ]);
 
-      setProfile(profileRes.data);
-      setResumes(
-        Array.isArray(resumeRes.data) ? resumeRes.data : []
-      );
-      setMatches(
-        Array.isArray(matchRes.data) ? matchRes.data : []
-      );
-      setPhotoFailed(false);
+      const failedRequests = [];
+
+      if (profileRes.status === "fulfilled") {
+        setProfile(profileRes.value.data);
+        setPhotoFailed(false);
+      } else {
+        failedRequests.push("profile");
+        console.error("Unable to load job seeker profile:", profileRes.reason);
+      }
+
+      if (resumeRes.status === "fulfilled") {
+        setResumes(Array.isArray(resumeRes.value.data) ? resumeRes.value.data : []);
+      } else {
+        failedRequests.push("resumes");
+        console.error("Unable to load resumes:", resumeRes.reason);
+      }
+
+      if (matchRes.status === "fulfilled") {
+        setMatches(Array.isArray(matchRes.value.data) ? matchRes.value.data : []);
+      } else {
+        failedRequests.push("matches");
+        console.error("Unable to load job matches:", matchRes.reason);
+      }
+
+      if (failedRequests.length) {
+        setDashboardError(
+          `Some dashboard information could not be loaded (${failedRequests.join(", ")}). You can retry without losing the sections that loaded successfully.`
+        );
+      }
     } catch (err) {
       console.error("Dashboard loading error:", err);
+      setDashboardError(
+        err.response?.data?.error ||
+          "Some dashboard information could not be loaded. Check your connection and try again."
+      );
+    } finally {
+      setDashboardLoading(false);
     }
   }, []);
 
@@ -74,10 +106,31 @@ export default function JobSeekerDashboard() {
   async function handleUpload(e) {
     e.preventDefault();
 
-    if (!file) return;
+    if (!file) {
+      setMessageError(true);
+      setMessage("Choose a PDF or DOCX CV before uploading.");
+      return;
+    }
+
+    const fileName = String(file.name || "").toLowerCase();
+    const allowedExtension = fileName.endsWith(".pdf") || fileName.endsWith(".docx");
+    if (!allowedExtension) {
+      setMessageError(true);
+      setMessage("Please choose a PDF or DOCX file.");
+      setFile(null);
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessageError(true);
+      setMessage("Your CV must be 5 MB or smaller.");
+      setFile(null);
+      return;
+    }
 
     setUploading(true);
     setMessage("");
+    setMessageError(false);
 
     try {
       const formData = new FormData();
@@ -85,12 +138,14 @@ export default function JobSeekerDashboard() {
 
       await api.post("/resumes/upload", formData);
 
+      setMessageError(false);
       setMessage("Resume uploaded successfully.");
       setFile(null);
       e.target.reset();
 
       await loadData();
     } catch (err) {
+      setMessageError(true);
       setMessage(
         err.response?.data?.error ||
           err.response?.data?.message ||
@@ -125,6 +180,28 @@ export default function JobSeekerDashboard() {
             Manage your professional profile, resume, career guidance and job matches.
           </p>
         </header>
+
+        {dashboardError && (
+          <div role="alert" className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+            <p>{dashboardError}</p>
+            <button
+              type="button"
+              onClick={loadData}
+              disabled={dashboardLoading}
+              className="self-start rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold transition hover:bg-amber-100 disabled:opacity-60 sm:self-auto"
+            >
+              {dashboardLoading ? "Refreshing…" : "Try again"}
+            </button>
+          </div>
+        )}
+
+        {dashboardLoading && !profile ? (
+          <div className="mb-8 rounded-2xl border border-[#DCD8CC] bg-white p-5" role="status" aria-live="polite">
+            <div className="h-4 w-40 animate-pulse rounded bg-[#E7E5DD]" />
+            <div className="mt-3 h-3 w-64 max-w-full animate-pulse rounded bg-[#E7E5DD]" />
+            <span className="sr-only">Loading your dashboard…</span>
+          </div>
+        ) : null}
 
         {/* AI CAREER AGENT */}
         <section className="relative mb-8 overflow-hidden rounded-3xl bg-[#16241E] p-6 text-white shadow-lg sm:p-8">
@@ -358,8 +435,32 @@ export default function JobSeekerDashboard() {
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <input
                 type="file"
-                accept=".pdf,.docx"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => {
+                  const selected = e.target.files?.[0] || null;
+                  setMessage("");
+                  setMessageError(false);
+                  if (!selected) {
+                    setFile(null);
+                    return;
+                  }
+                  const name = String(selected.name || "").toLowerCase();
+                  if (!name.endsWith(".pdf") && !name.endsWith(".docx")) {
+                    setFile(null);
+                    setMessageError(true);
+                    setMessage("Please choose a PDF or DOCX file.");
+                    e.target.value = "";
+                    return;
+                  }
+                  if (selected.size > 5 * 1024 * 1024) {
+                    setFile(null);
+                    setMessageError(true);
+                    setMessage("Your CV must be 5 MB or smaller.");
+                    e.target.value = "";
+                    return;
+                  }
+                  setFile(selected);
+                }}
                 className="w-full text-sm text-[#737B76]"
               />
 
@@ -373,10 +474,14 @@ export default function JobSeekerDashboard() {
             </div>
 
             {message && (
-              <p className="mt-4 text-sm text-[#47725A]" role="status">
+              <p
+                className={`mt-4 text-sm ${messageError ? "text-red-700" : "text-[#2F6F4E]"}`}
+                role={messageError ? "alert" : "status"}
+              >
                 {message}
               </p>
             )}
+            <p className="mt-3 text-xs leading-5 text-[#737B76]">Accepted formats: PDF or DOCX · Maximum file size: 5 MB.</p>
           </form>
 
           <div className="mt-4 divide-y divide-[#DCD8CC] rounded-2xl border border-[#DCD8CC] bg-white">

@@ -56,7 +56,7 @@ curl -X POST http://localhost:5001/match \
 cd server
 npm install
 cp .env.example .env
-# edit .env: set MONGO_URI (MongoDB Atlas connection string) and JWT_SECRET
+# edit .env: set MONGO_URI, JWT_SECRET, and the email settings below
 npm run dev
 ```
 
@@ -79,7 +79,11 @@ Runs on `http://localhost:5173`.
 - `MONGO_URI` — MongoDB Atlas connection string
 - `JWT_SECRET` — any long random string
 - `NLP_SERVICE_URL` — default `http://localhost:5001`
-- `CLIENT_URL` — default `http://localhost:5173`
+- `CLIENT_URL` — default `http://localhost:5173`; must match the frontend origin used in password-reset emails
+- `MAIL_HOST` — SMTP server for account verification and password-reset emails (default `smtp.gmail.com`)
+- `MAIL_PORT` — SMTP port (default `587`; use `465` for SSL/TLS)
+- `MAIL_USER` — email address used to send SmartHire messages
+- `MAIL_PASS` — SMTP password or Google App Password; never commit real credentials to GitHub
 
 **client/.env**
 - `VITE_API_URL` — default `http://localhost:5000/api`
@@ -96,6 +100,8 @@ Runs on `http://localhost:5173`.
 - **Backend:** Render Web Service (root directory: `server`; build: `npm install`; start: `npm start`)
 - **NLP service:** a separate Render Web Service (root directory: `nlp-service`; build: `pip install -r requirements.txt`; start: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120`)
 - **Database:** MongoDB Atlas
+
+For registration and password-reset emails, configure `MAIL_USER` and `MAIL_PASS` in the backend environment before enabling sign-up. For Gmail, use a Google App Password (not your normal account password); keep it in Render's environment settings and out of source control. If these values are missing, SmartHire will not be able to send verification codes.
 
 After deploying the NLP service, set the backend's `NLP_SERVICE_URL` environment variable to that service's public base URL (for example, `https://your-nlp-service.onrender.com`, without `/match`). Do not use `localhost:5001` in the deployed backend. Set `CLIENT_URL` to the exact frontend origin (for example, the Vercel or Render frontend URL); multiple origins can be comma-separated. Set the frontend's `VITE_API_URL` to the backend URL ending in `/api`.
 
