@@ -79,7 +79,7 @@ class SkillAliasTests(unittest.TestCase):
             "and collaborate on software projects."
         )
         job_text = (
-            "Required Skills: JavaScript, React.js, NodeJS\\n"
+            "Required Skills: JavaScript, React.js, NodeJS\n"
             "Responsibilities: Build and maintain web features for customers."
         )
 
