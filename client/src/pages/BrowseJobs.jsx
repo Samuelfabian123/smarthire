@@ -56,6 +56,7 @@ export default function BrowseJobs() {
   const [search, setSearch] = useState("");
   const [location, setLocation] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -81,6 +82,13 @@ export default function BrowseJobs() {
       (!place || String(job.location || "").toLowerCase().includes(place)) &&
       (sourceFilter === "all" || (sourceFilter === "external" ? Boolean(job.external) : !job.external));
   }), [jobs, search, location, sourceFilter]);
+
+  const sortedJobs = useMemo(() => [...filteredJobs].sort((a, b) => {
+    if (sortBy === "title") return String(a.title || "").localeCompare(String(b.title || ""));
+    const dateA = new Date(a.postedAt || a.createdAt || 0).getTime() || 0;
+    const dateB = new Date(b.postedAt || b.createdAt || 0).getTime() || 0;
+    return dateB - dateA;
+  }), [filteredJobs, sortBy]);
 
   async function matchJob(job) {
     setMatchingId(job._id);
@@ -127,13 +135,13 @@ export default function BrowseJobs() {
             <label className="relative block"><span className="sr-only">Filter by location</span><MapPin size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#737B76]" /><input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location (e.g. Lagos, Remote)" className="w-full rounded-xl border border-[#DCD8CC] bg-[#FDFCF9] py-3 pl-10 pr-3 text-sm outline-none focus:border-[#2F6F4E] focus:ring-2 focus:ring-[#2F6F4E]/10" /></label>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">{[["all", "All vacancies"], ["external", "External jobs"], ["smarthire", "SmartHire employers"]].map(([value, label]) => <button key={value} type="button" aria-pressed={sourceFilter === value} onClick={() => setSourceFilter(value)} className={`rounded-full border px-3.5 py-2 text-xs font-semibold transition ${sourceFilter === value ? "border-[#2F6F4E] bg-[#2F6F4E] text-white" : "border-[#DCD8CC] bg-white text-[#526057] hover:border-[#2F6F4E]"}`}>{label}</button>)}
-            {(search || location || sourceFilter !== "all") && <button type="button" onClick={() => { setSearch(""); setLocation(""); setSourceFilter("all"); }} className="ml-auto text-xs font-semibold text-[#2F6F4E] underline">Clear filters</button>}</div>
+            <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-[#526057]">Sort<select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-lg border border-[#DCD8CC] bg-white px-3 py-2 text-xs outline-none focus:border-[#2F6F4E]"><option value="newest">Newest first</option><option value="title">Job title A–Z</option></select></label>{(search || location || sourceFilter !== "all") && <button type="button" onClick={() => { setSearch(""); setLocation(""); setSourceFilter("all"); }} className="text-xs font-semibold text-[#2F6F4E] underline">Clear filters</button>}</div>
         </section>
 
         {error && <div role="alert" className="mb-5 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between"><p>{error}</p><button type="button" onClick={loadJobs} disabled={loading} className="inline-flex items-center gap-2 self-start rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold disabled:opacity-60"><RefreshCw size={15} /> Try again</button></div>}
 
         <section className="overflow-hidden rounded-2xl border border-[#DCD8CC] bg-white shadow-sm" aria-label="Available jobs">
-          {loading ? <LoadingRows /> : filteredJobs.length ? filteredJobs.map((job) => {
+          {loading ? <LoadingRows /> : sortedJobs.length ? sortedJobs.map((job) => {
             const description = cleanDescription(job.description);
             const applyUrl = safeExternalUrl(job.applyUrl || job.sourceJobUrl);
             const sourceUrl = safeExternalUrl(job.sourceUrl || job.sourceJobUrl);
