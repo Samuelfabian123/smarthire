@@ -340,6 +340,13 @@ export default function CandidatesList() {
 
         {!loading && !error && candidates.length > 0 && (
           <div className="space-y-4">
+            {candidates.filter((candidate) => decisionFilter === "all" || candidate.employerDecision === "shortlisted").length === 0 && (
+              <div className="rounded-2xl border border-[#DCD8CC] bg-white px-6 py-12 text-center">
+                <h3 className="font-serif text-xl text-ink">No shortlisted candidates yet</h3>
+                <p className="mt-2 text-sm text-muted">Choose “Shortlist candidate” on a promising applicant to save them here.</p>
+                <button type="button" onClick={() => setDecisionFilter("all")} className="mt-4 text-sm font-semibold text-[#2F6F4E] underline">View all candidates</button>
+              </div>
+            )}
             {candidates.filter((candidate) => decisionFilter === "all" || candidate.employerDecision === "shortlisted").map((candidate, index) => {
               const profile = candidate.jobSeekerProfile;
               const user = candidate.jobSeeker;
@@ -452,6 +459,13 @@ export default function CandidatesList() {
                             </span>
                           </p>
                         </div>
+                        {(candidate.matchedSkills?.length > 0 || candidate.missingSkills?.length > 0) && (
+                          <div className="mt-4 rounded-xl border border-[#EEEAE0] bg-[#FDFCF9] p-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#526057]">Skill comparison</p>
+                            {candidate.matchedSkills?.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{candidate.matchedSkills.slice(0, 5).map((skill) => <span key={`matched-${skill}`} className="rounded-full bg-[#EAF2EB] px-2 py-1 text-[11px] text-[#2F6F4E]">✓ {skill}</span>)}</div>}
+                            {candidate.missingSkills?.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{candidate.missingSkills.slice(0, 5).map((skill) => <span key={`missing-${skill}`} className="rounded-full bg-amber-50 px-2 py-1 text-[11px] text-amber-800">Needs: {skill}</span>)}</div>}
+                          </div>
+                        )}
                       </div>
                     </div>
 
