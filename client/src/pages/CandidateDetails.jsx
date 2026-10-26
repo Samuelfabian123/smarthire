@@ -105,6 +105,7 @@ export default function CandidateDetails() {
         );
 
         if (active) {
+          setPhotoFailed(false);
           setData(response.data);
         }
       } catch (err) {
