@@ -38,6 +38,11 @@ export default function EmployerProfile() {
     loadProfile();
   }, []);
 
+  useEffect(() => {
+    if (!preview.startsWith("blob:")) return undefined;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
+
   async function loadProfile() {
     setLoading(true);
     setLoadFailed(false);
