@@ -53,7 +53,7 @@ class SkillAliasTests(unittest.TestCase):
         self.assertTrue(skill_is_present("Managed calendar management tasks", "calendar management"))
         self.assertTrue(skill_is_present("Provided virtual assistant support", "virtual assistance"))
         self.assertTrue(skill_is_present("Handled social media management", "social media management"))
-        self.assertTrue(skill_is_present("Produced short-form content", "content creation"))
+        self.assertTrue(skill_is_present("Handled content creation for short-form videos", "content creation"))
 
     def test_word_boundaries_avoid_javascript_false_positive(self):
         self.assertFalse(skill_is_present("Experience with Java only", "javascript"))
