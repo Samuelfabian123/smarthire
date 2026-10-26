@@ -97,15 +97,20 @@ export default function BrowseJobs() {
       const response = job.external
         ? await api.post("/matches/external", { title: job.title, description: cleanDescription(job.description), skillsRequired: Array.isArray(job.skillsRequired) ? job.skillsRequired : [] })
         : await api.post(`/matches/job/${job._id}`);
-      const result = job.external ? response.data : response.data;
-      const score = result?.finalScore ?? result?.match?.finalScore;
+      const result = response.data || {};
+      const match = result.match || {};
+      const score = result.finalScore ?? match.finalScore;
       if (score === undefined || score === null || !Number.isFinite(Number(score))) throw new Error("The matching service returned an invalid score.");
       setMatchResults((prev) => ({
         ...prev,
         [job._id]: {
           finalScore: Number(score),
-          matchedSkills: Array.isArray(result?.matchedSkills) ? result.matchedSkills : [],
-          missingSkills: Array.isArray(result?.missingSkills) ? result.missingSkills : [],
+          matchedSkills: Array.isArray(result.matchedSkills)
+            ? result.matchedSkills.filter((skill) => typeof skill === "string")
+            : Array.isArray(match.matchedSkills) ? match.matchedSkills.filter((skill) => typeof skill === "string") : [],
+          missingSkills: Array.isArray(result.missingSkills)
+            ? result.missingSkills.filter((skill) => typeof skill === "string")
+            : Array.isArray(match.missingSkills) ? match.missingSkills.filter((skill) => typeof skill === "string") : [],
         },
       }));
     } catch (err) {
