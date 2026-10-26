@@ -57,6 +57,12 @@ const matchSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+
+    employerDecision: {
+      type: String,
+      enum: ["reviewing", "shortlisted", "not_selected"],
+      default: "reviewing",
+    },
   },
   { timestamps: true }
 );
