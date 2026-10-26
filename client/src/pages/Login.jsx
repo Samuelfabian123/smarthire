@@ -10,8 +10,16 @@ function Login() {
 
   function getPostLoginPath(role) {
     const requestedPath = new URLSearchParams(location.search).get("next");
+
     if (requestedPath && requestedPath.startsWith("/") && !requestedPath.startsWith("//")) {
-      return requestedPath;
+      try {
+        const target = new URL(requestedPath, window.location.origin);
+        if (target.origin === window.location.origin) {
+          return `${target.pathname}${target.search}${target.hash}`;
+        }
+      } catch {
+        // Fall back to the role dashboard if the return path is malformed.
+      }
     }
 
     return role === "employer" ? "/dashboard/employer" : "/dashboard/jobseeker";
