@@ -163,10 +163,12 @@ const updateEmployerProfile = async (req, res) => {
       }
     }
 
-    const logoUrl = getUploadedFileUrl(req.file);
-
-    if (logoUrl) {
-      profileFields.logoUrl = logoUrl;
+    // Persist the uploaded image itself in MongoDB instead of saving a path
+    // on Render's temporary filesystem (which disappears after redeploy/restart).
+    if (req.file?.buffer) {
+      const mimeType = req.file.mimetype || "image/png";
+      profileFields.logoDataUrl = `data:${mimeType};base64,${req.file.buffer.toString("base64")}`;
+      profileFields.logoUrl = "";
     }
 
     const profile = await EmployerProfile.findOneAndUpdate(
