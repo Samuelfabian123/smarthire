@@ -2,29 +2,30 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const User = require("../models/User");
 
-const mailer = nodemailer.createTransport({
-  host: process.env.MAIL_HOST || "smtp.gmail.com",
-  port: Number(process.env.MAIL_PORT || 587),
-  secure: Number(process.env.MAIL_PORT || 587) === 465,
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendSmartHireEmail({ to, subject, html }) {
-  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    throw new Error("Email delivery is not configured. Check MAIL_USER and MAIL_PASS.");
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("Email delivery is not configured. Check RESEND_API_KEY.");
   }
-  return mailer.sendMail({
-    from: `SmartHire <${process.env.MAIL_USER}>`,
-    to,
+
+  const from = process.env.MAIL_FROM || "onboarding@resend.dev";
+  const result = await resend.emails.send({
+    from: from.includes("<") ? from : `SmartHire <${from}>`,
+    to: [to],
     subject,
     html,
   });
+
+  if (result.error) {
+    console.error("RESEND EMAIL ERROR:", result.error);
+    throw new Error(result.error.message || "Resend could not send the email.");
+  }
+
+  return result;
 }
 
 function escapeHtml(value = "") {
