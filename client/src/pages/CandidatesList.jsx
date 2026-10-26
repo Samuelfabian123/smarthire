@@ -109,6 +109,8 @@ export default function CandidatesList() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState("");
+  const [decisionSaving, setDecisionSaving] = useState("");
+  const [decisionFilter, setDecisionFilter] = useState("all");
 
   useEffect(() => {
     let active = true;
@@ -193,6 +195,26 @@ export default function CandidatesList() {
     }
   }
 
+  async function updateDecision(candidate, decision) {
+    if (!candidate?._id || !jobId) return;
+    setDecisionSaving(candidate._id);
+    try {
+      const response = await api.patch(
+        `/matches/job/${jobId}/candidates/${candidate._id}/decision`,
+        { decision }
+      );
+      setCandidates((previous) => previous.map((item) =>
+        item._id === candidate._id
+          ? { ...item, employerDecision: response.data.employerDecision || decision }
+          : item
+      ));
+    } catch (err) {
+      window.alert(err.response?.data?.error || "Could not update this candidate. Please try again.");
+    } finally {
+      setDecisionSaving("");
+    }
+  }
+
   function handleViewProfile(candidate) {
     if (!candidate?._id || !jobId) {
       window.alert("Unable to open this candidate's profile.");
@@ -232,7 +254,7 @@ export default function CandidatesList() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h2 className="text-lg font-semibold text-ink">
               Candidate ranking
@@ -243,10 +265,10 @@ export default function CandidatesList() {
           </div>
 
           {!loading && !error && candidates.length > 0 && (
-            <span className="text-xs text-muted bg-white border border-[#DCD8CC] rounded-full px-3 py-2">
-              {candidates.length}{" "}
-              {candidates.length === 1 ? "candidate" : "candidates"}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => setDecisionFilter("all")} aria-pressed={decisionFilter === "all"} className={`rounded-full border px-3 py-2 text-xs font-semibold ${decisionFilter === "all" ? "border-[#2F6F4E] bg-[#2F6F4E] text-white" : "border-[#DCD8CC] bg-white text-[#526057]"}`}>All ({candidates.length})</button>
+              <button type="button" onClick={() => setDecisionFilter("shortlisted")} aria-pressed={decisionFilter === "shortlisted"} className={`rounded-full border px-3 py-2 text-xs font-semibold ${decisionFilter === "shortlisted" ? "border-[#2F6F4E] bg-[#2F6F4E] text-white" : "border-[#DCD8CC] bg-white text-[#526057]"}`}>Shortlisted ({candidates.filter((candidate) => candidate.employerDecision === "shortlisted").length})</button>
+            </div>
           )}
         </div>
 
@@ -318,7 +340,7 @@ export default function CandidatesList() {
 
         {!loading && !error && candidates.length > 0 && (
           <div className="space-y-4">
-            {candidates.map((candidate, index) => {
+            {candidates.filter((candidate) => decisionFilter === "all" || candidate.employerDecision === "shortlisted").map((candidate, index) => {
               const profile = candidate.jobSeekerProfile;
               const user = candidate.jobSeeker;
 
@@ -451,6 +473,17 @@ export default function CandidatesList() {
                         View Full Profile
                         <span aria-hidden="true">→</span>
                       </button>
+
+                      <div className="flex flex-col gap-2 w-full sm:w-auto">
+                        <span className={`rounded-full px-3 py-1.5 text-center text-xs font-semibold ${candidate.employerDecision === "shortlisted" ? "bg-[#EAF2EB] text-[#2F6F4E]" : candidate.employerDecision === "not_selected" ? "bg-stone-100 text-stone-600" : "bg-[#F7F5EE] text-[#526057]"}`}>
+                          {candidate.employerDecision === "shortlisted" ? "Shortlisted" : candidate.employerDecision === "not_selected" ? "Not selected" : "Awaiting review"}
+                        </span>
+                        <button type="button" onClick={() => updateDecision(candidate, candidate.employerDecision === "shortlisted" ? "reviewing" : "shortlisted")} disabled={decisionSaving === candidate._id} className={`w-full sm:w-auto rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60 ${candidate.employerDecision === "shortlisted" ? "border border-[#DCD8CC] text-[#526057] hover:bg-[#F7F5EE]" : "bg-[#2F6F4E] text-white hover:bg-[#234F38]"}`}>
+                          {decisionSaving === candidate._id ? "Saving…" : candidate.employerDecision === "shortlisted" ? "Remove from shortlist" : "Shortlist candidate"}
+                        </button>
+                        {candidate.employerDecision !== "not_selected" && <button type="button" onClick={() => updateDecision(candidate, "not_selected")} disabled={decisionSaving === candidate._id} className="w-full sm:w-auto rounded-xl border border-[#DCD8CC] px-4 py-2 text-xs font-semibold text-[#526057] hover:bg-[#F7F5EE] disabled:opacity-60">Mark not selected</button>}
+                        {candidate.employerDecision === "not_selected" && <button type="button" onClick={() => updateDecision(candidate, "reviewing")} disabled={decisionSaving === candidate._id} className="w-full sm:w-auto rounded-xl border border-[#DCD8CC] px-4 py-2 text-xs font-semibold text-[#526057] hover:bg-[#F7F5EE] disabled:opacity-60">Return to review</button>}
+                      </div>
 
                       {resumeId ? (
                         <button
