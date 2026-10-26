@@ -7,7 +7,7 @@ let cache = { expiresAt: 0, jobs: [] };
 function safePostedDate(value, seconds = false) {
   if (value == null || value === "") return null;
 
-  const looksNumeric = typeof value === "number" || /^\\d{10,13}$/.test(String(value));
+  const looksNumeric = typeof value === "number" || /^\d{10,13}$/.test(String(value));
   const numeric = Number(value);
   const isSeconds = seconds || (looksNumeric && Math.abs(numeric) < 1e12);
   const date = new Date(looksNumeric ? (isSeconds ? numeric * 1000 : numeric) : value);
