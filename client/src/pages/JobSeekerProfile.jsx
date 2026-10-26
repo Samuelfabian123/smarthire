@@ -7,7 +7,14 @@ import { useAuth } from "../context/AuthContext";
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const API_ORIGIN = new URL(API_BASE_URL, window.location.origin).origin;
+const API_ORIGIN = (() => {
+  try {
+    return new URL(API_BASE_URL, window.location.origin).origin;
+  } catch (error) {
+    console.error("Invalid SmartHire API URL; using the current site origin.", error);
+    return window.location.origin;
+  }
+})();
 
 function getImageUrl(url) {
   if (!url) return "";
