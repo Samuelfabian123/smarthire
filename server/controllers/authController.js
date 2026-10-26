@@ -165,6 +165,14 @@ exports.register = async (req, res) => {
     const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
+      if (!existingUser.isEmailVerified) {
+        return res.status(409).json({
+          error: "This email already has a pending registration. Enter the verification code or request a new one.",
+          requiresEmailVerification: true,
+          email: normalizedEmail,
+        });
+      }
+
       return res.status(409).json({
         error: "Email already registered. Please log in or use another email.",
       });
