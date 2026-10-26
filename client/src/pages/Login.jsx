@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+
+  function getPostLoginPath(role) {
+    const requestedPath = new URLSearchParams(location.search).get("next");
+    if (requestedPath && requestedPath.startsWith("/") && !requestedPath.startsWith("//")) {
+      return requestedPath;
+    }
+
+    return role === "employer" ? "/dashboard/employer" : "/dashboard/jobseeker";
+  }
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,11 +52,7 @@ function Login() {
 
       login(user, token);
 
-      if (user.role === "employer") {
-        navigate("/dashboard/employer");
-      } else {
-        navigate("/dashboard/jobseeker");
-      }
+      navigate(getPostLoginPath(user.role), { replace: true });
     } catch (err) {
       console.log("LOGIN ERROR:", err.response?.data || err.message);
 
@@ -95,12 +101,7 @@ function Login() {
       }
 
       login(response.data.user, response.data.token);
-      navigate(
-        response.data.user.role === "employer"
-          ? "/dashboard/employer"
-          : "/dashboard/jobseeker",
-        { replace: true }
-      );
+      navigate(getPostLoginPath(response.data.user.role), { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || "Could not verify your email. Check the code and try again.");
     } finally {
