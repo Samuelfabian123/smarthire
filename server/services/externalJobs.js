@@ -17,8 +17,17 @@ function safePostedDate(value) {
 }
 
 function isFutureDate(value) {
-  if (!value) return true;
-  const time = new Date(value).getTime();
+  if (value == null || value === "") return true;
+
+  const textValue = String(value).trim();
+  const isNumericTimestamp =
+    typeof value === "number" || /^\d{10,13}$/.test(textValue);
+  const numeric = Number(value);
+  const time = isNumericTimestamp
+    ? (Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric)
+    : new Date(value).getTime();
+
+  // If a provider sends an invalid expiry value, don't show it as a verified active vacancy.
   return Number.isFinite(time) && time > Date.now();
 }
 
@@ -39,7 +48,7 @@ function toSafeJobUrl(value) {
 
 function normalizeHimalayas(job) {
   const applyUrl = toSafeJobUrl(job.applicationLink);
-  if (!job.title || !applyUrl || !isFutureDate(job.expiryDate ? Number(job.expiryDate) * 1000 : null)) {
+  if (!job.title || !applyUrl || !isFutureDate(job.expiryDate)) {
     return null;
   }
 
