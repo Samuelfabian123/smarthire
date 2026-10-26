@@ -4,13 +4,14 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 const FAILURE_RETRY_MS = 60 * 1000;
 let cache = { expiresAt: 0, jobs: [] };
 
-function safePostedDate(value, seconds = false) {
+function safePostedDate(value) {
   if (value == null || value === "") return null;
 
   const looksNumeric = typeof value === "number" || /^\d{10,13}$/.test(String(value));
   const numeric = Number(value);
-  const isSeconds = seconds || (looksNumeric && Math.abs(numeric) < 1e12);
-  const date = new Date(looksNumeric ? (isSeconds ? numeric * 1000 : numeric) : value);
+  // Ten-digit Unix timestamps are seconds; thirteen-digit timestamps are milliseconds.
+  // Do not force units based on the provider, because feeds may change formats.
+  const date = new Date(looksNumeric ? (Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric) : value);
 
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
@@ -69,7 +70,7 @@ function normalizeHimalayas(job) {
     salary: job.minSalary || job.maxSalary
       ? [job.minSalary, job.maxSalary].filter((value) => value != null).join("–") + ` ${job.currency || ""} / ${job.salaryPeriod || "annual"}`
       : "",
-    postedAt: safePostedDate(job.pubDate, true),
+    postedAt: safePostedDate(job.pubDate),
     isRemote: true,
   };
 }
