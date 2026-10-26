@@ -76,7 +76,7 @@ function Login() {
     setError("");
     setVerificationMessage("");
 
-    if (!/^\\d{6}$/.test(verificationCode)) {
+    if (!/^\d{6}$/.test(verificationCode)) {
       setError("Enter the six-digit code sent to your email.");
       return;
     }
@@ -281,7 +281,7 @@ function Login() {
                 <input
                   id="login-verification-code"
                   value={verificationCode}
-                  onChange={(event) => setVerificationCode(event.target.value.replace(/\\D/g, "").slice(0, 6))}
+                  onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   maxLength={6}
