@@ -49,6 +49,11 @@ export default function JobSeekerProfile() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (!photoPreview.startsWith("blob:")) return undefined;
+    return () => URL.revokeObjectURL(photoPreview);
+  }, [photoPreview]);
+
   const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
