@@ -48,8 +48,12 @@ class SkillAliasTests(unittest.TestCase):
 
     def test_office_and_admin_aliases_are_recognized(self):
         self.assertTrue(skill_is_present("Reports created in MS Word", "microsoft word"))
+        self.assertTrue(skill_is_present("Prepared data in Google Sheets", "google sheets"))
+        self.assertTrue(skill_is_present("Created slides in PowerPoint", "microsoft powerpoint"))
         self.assertTrue(skill_is_present("Managed calendar management tasks", "calendar management"))
         self.assertTrue(skill_is_present("Provided virtual assistant support", "virtual assistance"))
+        self.assertTrue(skill_is_present("Handled social media management", "social media management"))
+        self.assertTrue(skill_is_present("Produced short-form content", "content creation"))
 
     def test_word_boundaries_avoid_javascript_false_positive(self):
         self.assertFalse(skill_is_present("Experience with Java only", "javascript"))
