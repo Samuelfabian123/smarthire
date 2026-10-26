@@ -44,6 +44,7 @@ export default function JobSeekerDashboard() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageError, setMessageError] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
@@ -106,6 +107,7 @@ export default function JobSeekerDashboard() {
     e.preventDefault();
 
     if (!file) {
+      setMessageError(true);
       setMessage("Choose a PDF or DOCX CV before uploading.");
       return;
     }
@@ -113,12 +115,14 @@ export default function JobSeekerDashboard() {
     const fileName = String(file.name || "").toLowerCase();
     const allowedExtension = fileName.endsWith(".pdf") || fileName.endsWith(".docx");
     if (!allowedExtension) {
+      setMessageError(true);
       setMessage("Please choose a PDF or DOCX file.");
       setFile(null);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
+      setMessageError(true);
       setMessage("Your CV must be 5 MB or smaller.");
       setFile(null);
       return;
@@ -126,6 +130,7 @@ export default function JobSeekerDashboard() {
 
     setUploading(true);
     setMessage("");
+    setMessageError(false);
 
     try {
       const formData = new FormData();
@@ -133,12 +138,14 @@ export default function JobSeekerDashboard() {
 
       await api.post("/resumes/upload", formData);
 
+      setMessageError(false);
       setMessage("Resume uploaded successfully.");
       setFile(null);
       e.target.reset();
 
       await loadData();
     } catch (err) {
+      setMessageError(true);
       setMessage(
         err.response?.data?.error ||
           err.response?.data?.message ||
@@ -432,6 +439,7 @@ export default function JobSeekerDashboard() {
                 onChange={(e) => {
                   const selected = e.target.files?.[0] || null;
                   setMessage("");
+                  setMessageError(false);
                   if (!selected) {
                     setFile(null);
                     return;
@@ -439,12 +447,14 @@ export default function JobSeekerDashboard() {
                   const name = String(selected.name || "").toLowerCase();
                   if (!name.endsWith(".pdf") && !name.endsWith(".docx")) {
                     setFile(null);
+                    setMessageError(true);
                     setMessage("Please choose a PDF or DOCX file.");
                     e.target.value = "";
                     return;
                   }
                   if (selected.size > 5 * 1024 * 1024) {
                     setFile(null);
+                    setMessageError(true);
                     setMessage("Your CV must be 5 MB or smaller.");
                     e.target.value = "";
                     return;
@@ -464,7 +474,10 @@ export default function JobSeekerDashboard() {
             </div>
 
             {message && (
-              <p className="mt-4 text-sm text-[#47725A]" role="status">
+              <p
+                className={`mt-4 text-sm ${messageError ? "text-red-700" : "text-[#2F6F4E]"}`}
+                role={messageError ? "alert" : "status"}
+              >
                 {message}
               </p>
             )}
