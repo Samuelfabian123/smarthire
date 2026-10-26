@@ -248,6 +248,167 @@ export default function Register() {
                         />
                       </div>
                     </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium">Company Name</label>
+                        <input
+                          name="companyName"
+                          value={form.companyName}
+                          onChange={handleChange}
+                          required
+                          placeholder="Your registered or business name"
+                          className={inputClass}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium">
+                          Company Address <span className="text-[#9A9F9B]">(optional)</span>
+                        </label>
+                        <input
+                          name="companyAddress"
+                          value={form.companyAddress}
+                          onChange={handleChange}
+                          autoComplete="street-address"
+                          placeholder="City or business address"
+                          className={inputClass}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <label className="text-sm font-medium">
+                      {role === "employer" ? "Company Email" : "Email Address"}
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={form.email}
+                      onChange={handleChange}
+                      autoComplete="email"
+                      required
+                      placeholder="you@example.com"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Phone Number</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={form.phone}
+                      onChange={handleChange}
+                      autoComplete="tel"
+                      required
+                      placeholder="e.g. 08012345678"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {role === "jobseeker" && (
+                    <div className="rounded-xl border border-[#DCD8CC] bg-white p-4 sm:p-5">
+                      <h3 className="mb-4 font-serif text-lg">
+                        Professional Information
+                      </h3>
+                      <p className="mb-4 text-xs leading-5 text-[#737B76]">
+                        These details help personalise your profile. You can
+                        complete or update them later.
+                      </p>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium">
+                            Professional Title
+                          </label>
+                          <input
+                            name="professionalTitle"
+                            value={form.professionalTitle}
+                            onChange={handleChange}
+                            placeholder="e.g. Software Developer"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium">Location</label>
+                          <input
+                            name="location"
+                            value={form.location}
+                            onChange={handleChange}
+                            placeholder="e.g. Enugu, Nigeria"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium">Skills</label>
+                          <textarea
+                            name="skills"
+                            value={form.skills}
+                            onChange={handleChange}
+                            rows={2}
+                            placeholder="JavaScript, React, Python..."
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-sm font-medium">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={form.password}
+                        onChange={handleChange}
+                        autoComplete="new-password"
+                        minLength={6}
+                        required
+                        placeholder="At least 6 characters"
+                        className={`${inputClass} pr-12`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((value) => !value)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737B76]"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full rounded-lg bg-[#2F6F4E] py-3.5 text-sm font-semibold text-white transition hover:bg-[#234F38] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? "Please wait..." : "Create Account"}
+                  </button>
+
+                  <p className="text-center text-xs leading-5 text-[#737B76]">
+                    By creating an account, you agree to use SmartHire responsibly.
+                  </p>
+                </form>
+
+                <p className="mt-6 text-center text-sm text-[#737B76]">
+                  Already have an account?{" "}
+                  <Link to="/login" className="font-semibold text-[#2F6F4E] hover:underline">
+                    Sign in
+                  </Link>
+                </p>
+              </>
           </div>
         </main>
       </div>
