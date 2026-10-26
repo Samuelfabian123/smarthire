@@ -4,6 +4,13 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 const FAILURE_RETRY_MS = 60 * 1000;
 let cache = { expiresAt: 0, jobs: [] };
 
+function safePostedDate(value, seconds = false) {
+  if (value == null || value === "") return null;
+  const numeric = Number(value);
+  const date = new Date(seconds && Number.isFinite(numeric) ? numeric * 1000 : value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
 function isFutureDate(value) {
   if (!value) return true;
   const time = new Date(value).getTime();
@@ -35,7 +42,7 @@ function normalizeHimalayas(job) {
     ? job.locationRestrictions.map((item) => item?.name).filter(Boolean)
     : [];
   const location = restrictions.length ? restrictions.join(", ") : "Remote · location restrictions may apply";
-  const description = job.description || job.excerpt || "";
+  const description = cleanText(job.description || job.excerpt || "");
 
   return {
     _id: `external:himalayas:${job.guid || applyUrl}`,
@@ -56,7 +63,7 @@ function normalizeHimalayas(job) {
     salary: job.minSalary || job.maxSalary
       ? [job.minSalary, job.maxSalary].filter((value) => value != null).join("–") + ` ${job.currency || ""} / ${job.salaryPeriod || "annual"}`
       : "",
-    postedAt: job.pubDate ? new Date(Number(job.pubDate) * 1000).toISOString() : null,
+    postedAt: safePostedDate(job.pubDate, true),
     isRemote: true,
   };
 }
@@ -97,7 +104,7 @@ function normalizeBoqqs(job) {
     employmentType: job.employmentType || "",
     seniority: "",
     salary,
-    postedAt: job.postedAt || null,
+    postedAt: safePostedDate(job.postedAt),
     isRemote: job.remote === "remote",
   };
 }
