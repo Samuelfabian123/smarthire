@@ -384,7 +384,7 @@ export default function CandidatesList() {
                             </span>{" "}
                             {phone ? (
                               <a
-                                href={`tel:${phone.replace(/[^+\\d]/g, "")}`}
+                                href={`tel:${phone.replace(/[^+\d]/g, "")}`}
                                 className="text-[#2F6F4E] underline underline-offset-2 hover:text-[#234F38]"
                               >
                                 {phone}
