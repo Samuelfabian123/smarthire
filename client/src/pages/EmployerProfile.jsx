@@ -14,7 +14,7 @@ const API_ORIGIN = (() => {
 
 function getImageUrl(url) {
   if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (/^(https?:\/\/|data:image\/)/i.test(url)) return url;
   return `${API_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
@@ -69,8 +69,9 @@ export default function EmployerProfile() {
           website: res.data.website || "",
         });
 
-        if (res.data.logoUrl) {
-          setPreview(res.data.logoUrl);
+        const savedLogo = res.data.logoDataUrl || res.data.logoUrl;
+        if (savedLogo) {
+          setPreview(savedLogo);
           setLogoFailed(false);
         }
       }
