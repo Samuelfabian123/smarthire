@@ -83,10 +83,17 @@ export default function Register() {
 
       const response = await api.post("/auth/register", payload);
 
-      const { token, user } = response.data;
+      if (response.data?.requiresEmailVerification) {
+        setEmail(response.data.email || normalizedEmail);
+        setStage("verify");
+        setMessage(response.data.message || "Enter the verification code sent to your email.");
+        return;
+      }
+
+      const { token, user } = response.data || {};
 
       if (!token || !user) {
-        throw new Error("Account created, but sign-in details were not returned.");
+        throw new Error("Registration response was incomplete. Please try again.");
       }
 
       login(user, token);
@@ -100,10 +107,11 @@ export default function Register() {
     } catch (err) {
       setError(
         err.response?.data?.error ||
+          err.message ||
           "Registration failed. Please try again."
       );
 
-      if (err.response?.data?.accountCreated) {
+      if (err.response?.data?.accountCreated || err.response?.data?.requiresEmailVerification) {
         setEmail(err.response.data.email || normalizedEmail);
         setStage("verify");
       }
