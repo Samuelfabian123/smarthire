@@ -1,8 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BriefcaseBusiness, MapPin, Search, Sparkles, RefreshCw } from "lucide-react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+
+const JOB_CACHE_KEY = "smarthire.jobs.cache.v1";
+const JOB_CACHE_MAX_AGE = 2 * 60 * 1000;
+
+function readCachedJobs() {
+  try {
+    const cached = JSON.parse(window.sessionStorage.getItem(JOB_CACHE_KEY) || "null");
+    if (cached && Array.isArray(cached.jobs) && Date.now() - cached.savedAt < JOB_CACHE_MAX_AGE) {
+      return cached.jobs;
+    }
+  } catch {
+    // Ignore unavailable or malformed browser cache.
+  }
+  return [];
+}
 
 function companyName(job) {
   return job.company || job.employer?.companyName || job.employer?.name || "Hiring employer";
@@ -57,12 +72,13 @@ function LoadingRows() {
 export default function BrowseJobs() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState(() => readCachedJobs());
+  const jobsRef = useRef(readCachedJobs());
   const [matchingId, setMatchingId] = useState(null);
   const [matchResults, setMatchResults] = useState({});
   const [matchErrors, setMatchErrors] = useState({});
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => readCachedJobs().length === 0);
   const [search, setSearch] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("search") || "";
@@ -72,11 +88,18 @@ export default function BrowseJobs() {
   const [sortBy, setSortBy] = useState("newest");
 
   const loadJobs = useCallback(async () => {
-    setLoading(true);
+    if (jobsRef.current.length === 0) setLoading(true);
     setError("");
     try {
       const { data } = await api.get("/jobs");
-      setJobs(Array.isArray(data) ? data : Array.isArray(data?.jobs) ? data.jobs : []);
+      const nextJobs = Array.isArray(data) ? data : Array.isArray(data?.jobs) ? data.jobs : [];
+      jobsRef.current = nextJobs;
+      setJobs(nextJobs);
+      try {
+        window.sessionStorage.setItem(JOB_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), jobs: nextJobs }));
+      } catch {
+        // Browsing still works if session storage is unavailable.
+      }
     } catch (err) {
       console.error("Unable to load jobs:", err);
       setError(err.response?.data?.error || "We couldn't load vacancies. Check your connection and try again.");
