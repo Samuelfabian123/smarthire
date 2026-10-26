@@ -6,7 +6,12 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem("user");
-      if (!stored) return null;
+      const token = localStorage.getItem("token");
+      if (!stored || !token) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        return null;
+      }
 
       const parsed = JSON.parse(stored);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
