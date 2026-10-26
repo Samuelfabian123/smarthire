@@ -142,6 +142,17 @@ export default function EmployerProfile() {
     }
   }
 
+  if (loading && !loadFailed) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F7F5EE] px-4 text-[#16241E]">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#DCD8CC] bg-white px-6 py-5 shadow-sm" role="status" aria-live="polite">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#DCD8CC] border-t-[#2F6F4E]" />
+          <span className="text-sm font-medium">Loading your company profile…</span>
+        </div>
+      </main>
+    );
+  }
+
   if (loadFailed) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F7F5EE] px-4 py-10">
